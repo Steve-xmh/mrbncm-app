@@ -1,0 +1,55 @@
+{
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "beforeBuildCommand": "yarn build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist",
+    "withGlobalTauri": false
+  },
+  "package": {
+    "productName": "net.stevexmh.mrbncm-app",
+    "version": "0.0.0"
+  },
+  "tauri": {
+    "systemTray": {
+      "iconPath": "icons/icon.png"
+    },
+    "allowlist": {
+      "all": true,
+      "http": {
+        "all": true,
+        "scope": [
+          "https://*.163.com/*"
+        ]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "net.stevexmh.mrbncm-app",
+      "targets": "all"
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "MRBNCM App",
+        "label": "main",
+        "width": 800,
+        "height": 600
+      }
+    ]
+  }
+}
