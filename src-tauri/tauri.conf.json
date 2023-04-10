@@ -7,7 +7,7 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "net.stevexmh.mrbncm-app",
+    "productName": "mrbncm-app",
     "version": "0.0.0"
   },
   "tauri": {

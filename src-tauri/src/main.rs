@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod eapi;
 mod ncm;
 mod rc4;
-mod eapi;
 
 use tauri::*;
 
@@ -40,15 +40,16 @@ fn main() {
             eapi::tauri_eapi_encrypt_for_request,
         ])
         .on_system_tray_event(|app, event| match event {
-            tauri::SystemTrayEvent::DoubleClick {
-                tray_id,
-                position,
-                size,
-                ..
-            } => {
+            tauri::SystemTrayEvent::DoubleClick { .. } => {
                 recreate_window(app);
             }
-            tauri::SystemTrayEvent::MenuItemClick { tray_id, id, .. } => match id.as_str() {
+            tauri::SystemTrayEvent::LeftClick { .. } => {
+                #[cfg(target_os = "macos")]
+                {
+                    recreate_window(app);
+                }
+            }
+            tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "show" => {
                     recreate_window(app);
                 }

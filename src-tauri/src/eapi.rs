@@ -1,4 +1,3 @@
-use concat_string::concat_string;
 use libaes::Cipher;
 use once_cell::unsync::Lazy;
 
