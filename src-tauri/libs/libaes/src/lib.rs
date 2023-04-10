@@ -231,14 +231,14 @@ impl Cipher {
         unpad(&mut new);
         new
     }
-    
+
     pub fn ebc_encrypt(&self, data: &[u8]) -> Vec<u8> {
         let mut padded = pad(data);
-        
+
         for block in padded.chunks_exact_mut(AES_BLOCK_SIZE) {
             aes_encrypt(BlockBuf::InPlace(block), &self.encrypt_key);
         }
-        
+
         padded
     }
 

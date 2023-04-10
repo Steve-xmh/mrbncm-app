@@ -12,10 +12,14 @@
   },
   "license": "GPL-3.0-only",
   "dependencies": {
+    "@iconify/icons-ic": "^1.2.13",
+    "@iconify/icons-uil": "^1.2.3",
+    "@iconify/react": "^4.1.0",
     "@tauri-apps/api": "^1.2.0",
     "jotai": "^2.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^6.10.0",
     "react-slider": "^2.0.4",
     "react-use": "^17.4.0",
     "sass": "^1.58.3"

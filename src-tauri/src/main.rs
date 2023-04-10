@@ -14,12 +14,14 @@ fn recreate_window(app: &AppHandle) {
         tauri::WindowUrl::External(app.config().build.dev_path.to_string().parse().unwrap()),
     )
     .inner_size(800., 600.)
+    .min_inner_size(800., 600.)
     .title("MRBNCM App")
     .build()
     .expect("can't show original window");
     #[cfg(not(debug_assertions))]
     tauri::WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
         .inner_size(800., 600.)
+        .min_inner_size(800., 600.)
         .title("MRBNCM App")
         .build()
         .expect("can't show original window");

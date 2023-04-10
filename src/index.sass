@@ -3,9 +3,82 @@
     margin: 0
     user-select: none
 
-.login-page
+$fonts: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+    
+:root
+    font-family: $fonts
+    background: #111
+    color: #FFF
+
+input
+    background: transparent
+    border: solid 2px #FFF2
+    border-radius: 8px
+    padding: 8px 12px
+    color: white
+    &:focus
+        border: solid 2px #FFF8
+        outline: none
+    &::placeholder
+        font-family: $fonts
+
+.spacer
+    flex: 1
+    
+.container
+    display: flex
     width: 100vw
     height: 100vh
+    flex-direction: column
+    overflow: hidden
+    .upper-container
+        flex: 1
+    .playbar
+        border-top: solid 2px #FFF3
+        padding: 16px
+
+.main-page-router
+    flex: 1
+    min-height: 0
+    overflow-y: auto
+    
+.sidebar-btn
+    color: white
+    border: none
+    background: transparent
+    cursor: pointer
+    padding: 8px 12px
+    border-radius: 8px
+    text-align: left
+    display: flex
+    align-items: center
+    &:hover
+        background: #FFF1
+    .icon
+        margin: 6px
+        margin-right: 12px
+    .avatar
+        border-radius: 50%
+        margin-right: 6px
+        display: inline-block
+.upper-container
+    display: flex
+    .sidebar
+        min-width: 256px
+        padding: 16px
+        display: flex
+        gap: 7px
+        flex-direction: column
+    .dragger
+        width: 2px
+        background-color: #FFF3
+        cursor: e-resize
+
+.search-input
+    margin-bottom: 16px
+    
+.login-page
+    height: 100%
     display: flex
     align-items: center
     justify-content: center
