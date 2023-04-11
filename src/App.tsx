@@ -1,16 +1,27 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import {
+	createHashRouter,
+	RouterProvider,
+	NavigateFunction,
+} from "react-router-dom";
 import { LoginPage } from "./pages/Login";
 import { MainPage } from "./pages/Main";
 import { Icon } from "@iconify/react";
 import settingIcon from "@iconify/icons-uil/setting";
+import playlistIcon from "@iconify/icons-mdi/playlist-music";
 import baselineHome from "@iconify/icons-ic/baseline-home";
 import { ErrorPage } from "./pages/Error";
 import { SettingsPage } from "./pages/Settings";
-import { Suspense, useCallback } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import { userInfoAtom } from "./ncm-api";
+import { Suspense, useContext } from "react";
+import { useAtomValue } from "jotai";
+import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
+import { createContext } from "react";
+import { PlaylistPage } from "./pages/Playlist";
 
-const router = createBrowserRouter([
+let navigate: NavigateFunction = (path) => {
+	location.hash = `#${path}`;
+};
+
+const router = createHashRouter([
 	{
 		path: "/login",
 		element: <LoginPage />,
@@ -24,6 +35,10 @@ const router = createBrowserRouter([
 		element: <MainPage />,
 		errorElement: <ErrorPage />,
 	},
+	{
+		path: "/playlist/:id",
+		element: <PlaylistPage />,
+	},
 ]);
 
 const UserInfoButton: React.FC = () => {
@@ -31,24 +46,44 @@ const UserInfoButton: React.FC = () => {
 
 	return (
 		<button className="sidebar-btn" onClick={() => {}}>
-			<img
-				width={32}
-				height={32}
-				alt="头像"
-				className="avatar"
-				src={userInfo.profile.avatarUrl}
-			/>
-			{userInfo.profile.nickname}
+			{userInfo?.profile?.avatarUrl ? (
+				<img
+					width={32}
+					height={32}
+					alt="头像"
+					className="avatar"
+					src={userInfo?.profile?.avatarUrl || ""}
+				/>
+			) : (
+				<div className="no-avatar" />
+			)}
+			{userInfo?.profile?.nickname || "未登录"}
 		</button>
 	);
 };
 
-function App() {
-	const navigate = useCallback((path: string) => {
-		history.pushState({}, "", path);
-		location.reload();
-	}, []);
+const UserPlaylists: React.FC = () => {
+	const playlists = useAtomValue(userPlaylistAtom).playlist ?? [];
 
+	return (
+		<>
+			{playlists.map((v) => (
+				<button
+					key={`playlist-btn-${v.id}`}
+					className="sidebar-btn"
+					onClick={() =>
+						navigate(`/playlist/${v.id}?name=${encodeURIComponent(v.name)}`)
+					}
+				>
+					<Icon width={20} icon={playlistIcon} inline className="icon" />
+					{v.name}
+				</button>
+			))}
+		</>
+	);
+};
+
+function App() {
 	return (
 		<div className="container">
 			<div className="upper-container">
@@ -63,7 +98,20 @@ function App() {
 						<Icon width={20} icon={baselineHome} inline className="icon" />
 						主页
 					</button>
-					<div className="spacer" />
+					<Suspense>
+						<div
+							style={{
+								minHeight: 0,
+								flex: 1,
+								overflowY: "scroll",
+								display: "flex",
+								flexDirection: "column",
+							}}
+						>
+							<UserPlaylists />
+						</div>
+					</Suspense>
+					{/* <div className="spacer" /> */}
 					<Suspense>
 						<UserInfoButton />
 					</Suspense>
@@ -79,7 +127,9 @@ function App() {
 				</div>
 				<div className="dragger" />
 				<div className="main-page-router">
-					<RouterProvider router={router} />
+					<Suspense>
+						<RouterProvider router={router} />
+					</Suspense>
 				</div>
 			</div>
 			<div className="playbar">

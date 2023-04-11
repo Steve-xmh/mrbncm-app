@@ -13,6 +13,7 @@
   "license": "GPL-3.0-only",
   "dependencies": {
     "@iconify/icons-ic": "^1.2.13",
+    "@iconify/icons-mdi": "^1.2.44",
     "@iconify/icons-uil": "^1.2.3",
     "@iconify/react": "^4.1.0",
     "@tauri-apps/api": "^1.2.0",

@@ -33,11 +33,15 @@ export class NCMAPI {
 		return client;
 	}
 
-	async request<T>(url: string, data: string): Promise<T> {
+	async request<T = any>(url: string, data: string): Promise<T> {
 		const client = await this.getClient();
 		const urlObj = new URL(url);
 		const cookies = this.cookies.map((v) => `${v.Name}=${v.Value}`).join("; ");
-		console.log(url, cookies);
+		console.log(
+			url,
+			data,
+			this.cookies.map((v) => `${v.Name}=${v.Value}`),
+		);
 		if (urlObj.pathname.startsWith("/eapi")) {
 			const res = await client.post<number[]>(
 				url,
@@ -57,16 +61,22 @@ export class NCMAPI {
 					},
 				},
 			);
+			console.log(res);
 			if (res.ok) {
 				if (res.data[0] === 123) {
 					// 尝试直接解码，可能是明文
 					try {
 						const decoder = new TextDecoder();
-						return JSON.parse(decoder.decode(new Uint8Array(res.data)));
+						const decoded = JSON.parse(
+							decoder.decode(new Uint8Array(res.data)),
+						);
+						console.log(decoded);
+						return decoded;
 					} catch {}
 				}
 				const de = await eapiDecrypt(binaryToHex(res.data));
 				const hex = JSON.parse(de);
+				console.log(hex);
 				return hex;
 			} else {
 				if (res.data[0] === 123) {
@@ -105,7 +115,21 @@ export const userInfoAtom = atom(async (get) => {
 	return await api.request("https://music.163.com/api/nuser/account/get", "{}");
 });
 
-export const userSubCount = atom(async (get) => {
+export const userSubCountAtom = atom(async (get) => {
 	const api = get(ncmAPIAtom);
 	return await api.request("https://music.163.com/api/subcount", "{}");
+});
+
+export const userPlaylistAtom = atom(async (get) => {
+	const api = get(ncmAPIAtom);
+	const userInfo = await get(userInfoAtom);
+	return await api.request(
+		"https://music.163.com/eapi/user/playlist",
+		JSON.stringify({
+			uid: userInfo.account.id,
+			limit: 30,
+			offset: 0,
+			includeVideo: true,
+		}),
+	);
 });
