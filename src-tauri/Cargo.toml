@@ -40,7 +40,8 @@ concat-string = "1.0.1"
 sqlx = "0.6.3"
 pollster = "0.3.0"
 cpal = "0.15.2"
-symphonia = { version = "0.5.2", features = ["all-formats", "all-codecs"] }
+symphonia = { version = "0.5.2", features = ["all"] }
+attohttpc = "0.25"
 
 [dependencies.tauri-plugin-sql]
 git = "https://github.com/tauri-apps/plugins-workspace"

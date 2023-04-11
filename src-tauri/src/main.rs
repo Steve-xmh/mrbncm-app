@@ -3,6 +3,7 @@
 mod eapi;
 mod ncm;
 mod rc4;
+mod audio;
 
 use tauri::*;
 
@@ -40,6 +41,8 @@ fn main() {
             eapi::tauri_eapi_encrypt,
             eapi::tauri_eapi_decrypt,
             eapi::tauri_eapi_encrypt_for_request,
+            audio::init_audio_thread,
+            audio::send_msg_to_audio_thread,
         ])
         .on_system_tray_event(|app, event| match event {
             tauri::SystemTrayEvent::DoubleClick { .. } => {
