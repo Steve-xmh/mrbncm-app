@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.sass";
+import "./scroll-bar.css";
 import * as NCMAPI from "./ncm-api";
 import * as TAPI from "./tauri-api";
 

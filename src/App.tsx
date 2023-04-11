@@ -11,11 +11,11 @@ import playlistIcon from "@iconify/icons-mdi/playlist-music";
 import baselineHome from "@iconify/icons-ic/baseline-home";
 import { ErrorPage } from "./pages/Error";
 import { SettingsPage } from "./pages/Settings";
-import { Suspense, useContext } from "react";
+import { Suspense } from "react";
 import { useAtomValue } from "jotai";
 import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
-import { createContext } from "react";
 import { PlaylistPage } from "./pages/Playlist";
+import { BarLoader } from "react-spinners";
 
 let navigate: NavigateFunction = (path) => {
 	location.hash = `#${path}`;
@@ -76,7 +76,7 @@ const UserPlaylists: React.FC = () => {
 					}
 				>
 					<Icon width={20} icon={playlistIcon} inline className="icon" />
-					{v.name}
+					<div className="name">{v.name}</div>
 				</button>
 			))}
 		</>
@@ -103,7 +103,8 @@ function App() {
 							style={{
 								minHeight: 0,
 								flex: 1,
-								overflowY: "scroll",
+								overflowX: "hidden",
+								overflowY: "auto",
 								display: "flex",
 								flexDirection: "column",
 							}}
@@ -127,7 +128,7 @@ function App() {
 				</div>
 				<div className="dragger" />
 				<div className="main-page-router">
-					<Suspense>
+					<Suspense fallback={<BarLoader />}>
 						<RouterProvider router={router} />
 					</Suspense>
 				</div>

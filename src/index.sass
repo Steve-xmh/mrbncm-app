@@ -4,7 +4,7 @@
     user-select: none
 
 $fonts: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
-    
+
 :root
     font-family: $fonts
     background: #111
@@ -24,7 +24,7 @@ input
 
 .spacer
     flex: 1
-    
+
 .container
     display: flex
     width: 100vw
@@ -42,7 +42,7 @@ input
     flex: 1
     min-height: 0
     overflow-y: auto
-    
+
 .sidebar-btn
     color: white
     border: none
@@ -53,9 +53,16 @@ input
     text-align: left
     display: flex
     align-items: center
+    min-width: 0px
     &:hover
         background: #FFF1
+    .name
+        min-width: 0
+        overflow: hidden
+        white-space: nowrap
+        text-overflow: ellipsis
     .icon
+        min-width: 20px
         margin: 6px
         margin-right: 12px
     .avatar
@@ -66,10 +73,12 @@ input
     display: flex
     .sidebar
         min-width: 256px
+        max-width: 350px
         padding: 16px
         display: flex
         gap: 7px
         flex-direction: column
+        overflow: hidden auto
     .dragger
         width: 2px
         background-color: #FFF3
@@ -77,7 +86,7 @@ input
 
 .search-input
     margin-bottom: 16px
-    
+
 .login-page
     height: 100%
     display: flex

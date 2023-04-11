@@ -37,6 +37,15 @@ once_cell = "1.17.1"
 md5 = "0.7.0"
 faster-hex = "0.6.1"
 concat-string = "1.0.1"
+sqlx = "0.6.3"
+pollster = "0.3.0"
+cpal = "0.15.2"
+symphonia = { version = "0.5.2", features = ["all-formats", "all-codecs"] }
+
+[dependencies.tauri-plugin-sql]
+git = "https://github.com/tauri-apps/plugins-workspace"
+branch = "dev"
+features = ["sqlite"]
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
