@@ -3,11 +3,14 @@ use base64::prelude::*;
 use byteorder::*;
 use libaes::*;
 use std::io::{Read, Seek};
+use symphonia::core::io::MediaSource;
 
 /// 一个支持流式读取的 NCM 格式结构
 pub struct NCMFile<R> {
     inner: R,
+    is_streaming: bool,
     data_pos: u64,
+    data_len: Option<u64>,
     rc4: crate::rc4::RC4,
 }
 
@@ -19,7 +22,7 @@ const META_KEY: [u8; 16] = [
 ];
 
 impl<R: Read + Seek> NCMFile<R> {
-    pub fn new(mut reader: R) -> anyhow::Result<Self> {
+    pub fn new(mut reader: R, is_streaming: bool) -> anyhow::Result<Self> {
         let mut magic_header = [0u8; 10];
 
         reader
@@ -68,11 +71,29 @@ impl<R: Read + Seek> NCMFile<R> {
         // 记录当前真正的音频数据的开始位置
         let data_pos = reader.stream_position()?;
 
-        Ok(Self {
+        let mut result = Self {
             inner: reader,
             data_pos,
+            data_len: None,
+            is_streaming,
             rc4: crate::rc4::RC4::new(&rc4_key),
-        })
+        };
+
+        result.data_len = result.get_len().ok();
+
+        Ok(result)
+    }
+
+    fn get_len(&mut self) -> std::io::Result<u64> {
+        let old_pos = self.stream_position()?;
+        let len = self.seek(std::io::SeekFrom::End(0))?;
+
+        // Avoid seeking a third time when we were already at the end of the
+        // stream. The branch is usually way cheaper than a seek operation.
+        if old_pos != len {
+            self.seek(std::io::SeekFrom::Start(old_pos))?;
+        }
+        Ok(len)
     }
 }
 
@@ -106,5 +127,15 @@ impl<R: Seek> Seek for NCMFile<R> {
             }
         }
         .map(|x| x - self.data_pos)
+    }
+}
+
+impl<R: Read + Seek + Send + Sync> MediaSource for NCMFile<R> {
+    fn is_seekable(&self) -> bool {
+        true
+    }
+
+    fn byte_len(&self) -> Option<u64> {
+        self.data_len
     }
 }

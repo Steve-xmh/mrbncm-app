@@ -1,7 +1,12 @@
 import { Body, Client, ResponseType, getClient } from "@tauri-apps/api/http";
 import { Cookie, ncmCookieAtom } from "./ncm-cookie";
-import { eapiDecrypt, eapiEncryptForRequest } from "./tauri-api";
+import {
+	eapiDecrypt,
+	eapiEncryptForRequest,
+	sendMsgToAudioThread,
+} from "./tauri-api";
 import { atom } from "jotai";
+import { invoke } from "@tauri-apps/api/tauri";
 
 let client: Client;
 
@@ -107,6 +112,9 @@ export class NCMAPI {
 
 export const ncmAPIAtom = atom((get) => {
 	const cookies = get(ncmCookieAtom);
+	sendMsgToAudioThread("setCookie", {
+		cookie: cookies.map((v) => `${v.Name}=${v.Value}`).join("; "),
+	});
 	return new NCMAPI(cookies);
 });
 

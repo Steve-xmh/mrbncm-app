@@ -1,4 +1,35 @@
 import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
+import { uid } from "uid";
+
+const msgTasks = new Map<string, (value: any) => void>();
+
+invoke("init_audio_thread");
+listen<{
+	callbackId: string;
+	data: any;
+}>("on_audio_thread_message", (evt) => {
+	const resolve = msgTasks.get(evt.payload.callbackId);
+	if (resolve) {
+		msgTasks.delete(evt.payload.callbackId);
+		resolve(evt.payload.data);
+	}
+});
+
+export function sendMsgToAudioThread(msgType: string, data: any): Promise<any> {
+	const id = uid(32) + Date.now();
+	return new Promise((resolve) => {
+		msgTasks.set(id, resolve);
+		invoke("send_msg_to_audio_thread", {
+			msg: {
+				[msgType]: {
+					callbackId: id,
+					...data,
+				},
+			},
+		});
+	});
+}
 
 export function eapiEncryptForRequest(
 	urlPath: string,

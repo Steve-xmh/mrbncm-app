@@ -41,7 +41,10 @@ sqlx = "0.6.3"
 pollster = "0.3.0"
 cpal = "0.15.2"
 symphonia = { version = "0.5.2", features = ["all"] }
-attohttpc = "0.25"
+attohttpc = { version =  "0.25", features = ["json"] }
+ringbuf = "0.3.3"
+rubato = "0.12.0"
+arrayvec = "0.7.2"
 
 [dependencies.tauri-plugin-sql]
 git = "https://github.com/tauri-apps/plugins-workspace"

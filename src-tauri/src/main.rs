@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audio;
 mod eapi;
 mod ncm;
 mod rc4;
-mod audio;
 
 use tauri::*;
 
@@ -26,6 +26,11 @@ fn recreate_window(app: &AppHandle) {
         .title("MRBNCM App")
         .build()
         .expect("can't show original window");
+}
+
+fn exit(app: &AppHandle) {
+    audio::stop_audio_thread();
+    app.exit(0);
 }
 
 fn main() {
@@ -59,7 +64,7 @@ fn main() {
                     recreate_window(app);
                 }
                 "quit" => {
-                    app.exit(0);
+                    exit(app);
                 }
                 _ => {}
             },
