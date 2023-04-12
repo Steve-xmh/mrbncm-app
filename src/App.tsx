@@ -16,6 +16,7 @@ import { useAtomValue } from "jotai";
 import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
 import { PlaylistPage } from "./pages/Playlist";
 import { BarLoader } from "react-spinners";
+import { BottomPlayControls } from "./components/BottomPlayControls";
 
 let navigate: NavigateFunction = (path) => {
 	location.hash = `#${path}`;
@@ -133,9 +134,7 @@ function App() {
 					</Suspense>
 				</div>
 			</div>
-			<div className="playbar">
-				<img width={64} height={64} alt="专辑图片" />
-			</div>
+			<BottomPlayControls />
 		</div>
 	);
 }

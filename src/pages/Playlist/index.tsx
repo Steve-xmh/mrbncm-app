@@ -1,12 +1,14 @@
 import { useAtomValue } from "jotai";
 import { useParams } from "react-router-dom";
-import { ncmAPIAtom } from "../../ncm-api";
+import { getSongDetailAtom, ncmAPIAtom } from "../../ncm-api";
 import { useEffect, useState } from "react";
 import "./index.sass";
 import { BarLoader } from "react-spinners";
+import { sendMsgToAudioThread } from "../../tauri-api";
 
 export const PlaylistPage: React.FC = () => {
 	const ncm = useAtomValue(ncmAPIAtom);
+	const getSongDetail = useAtomValue(getSongDetailAtom);
 	const [playlist, setPlaylist] = useState({});
 	const [playlistSongs, setPlaylistSongs] = useState<any[] | null>(null);
 	const param = useParams();
@@ -27,28 +29,8 @@ export const PlaylistPage: React.FC = () => {
 					}),
 				);
 				if (!canceled) setPlaylist(res);
-				const songsAmount = res?.playlist?.trackIds?.length ?? 0;
-				const songsThreads = [];
-				for (let i = 0; i < songsAmount; i += 1000) {
-					const postData = [];
-					for (let j = 0; j < Math.min(1000, songsAmount - i); j++) {
-						postData.push({
-							id: res?.playlist?.trackIds[i + j]?.id,
-							v: 0,
-						});
-					}
-					songsThreads.push(
-						ncm.request(
-							"https://music.163.com/eapi/v3/song/detail",
-							JSON.stringify({
-								c: JSON.stringify(postData),
-								e_r: true,
-							}),
-						),
-					);
-				}
-				const songs = (await Promise.all(songsThreads)).flatMap((v) => v.songs);
-				console.log(songs);
+				const ids = res?.playlist?.trackIds?.map((v) => v.id) ?? [];
+				const songs = await getSongDetail(ids);
 				setPlaylistSongs(songs);
 			})();
 			return () => {
@@ -80,7 +62,23 @@ export const PlaylistPage: React.FC = () => {
 						<div>{playlist?.playlist?.creator?.nickname || ""}</div>
 					</div>
 					<div className="playlist-actions">
-						<button className="playlist-play-btn" type="button">
+						<button
+							className="playlist-play-btn"
+							type="button"
+							onClick={async () => {
+								if (playlistSongs) {
+									await sendMsgToAudioThread("setPlaylist", {
+										songs: playlistSongs.map((v, i) => ({
+											ncmId: String(v.id),
+											localFile: "",
+											duration: 0,
+											origOrder: i,
+										})),
+									});
+									await sendMsgToAudioThread("nextSong");
+								}
+							}}
+						>
 							播放歌单
 						</button>
 					</div>
@@ -88,8 +86,24 @@ export const PlaylistPage: React.FC = () => {
 			</div>
 			<div className="playlist-songs">
 				{playlistSongs ? (
-					playlistSongs.map((v) => (
-						<div className="song-btn" key={`playlist-songs-${v.id}`}>
+					playlistSongs.map((v, i) => (
+						<div
+							className="song-btn"
+							key={`playlist-songs-${v.id}`}
+							onDoubleClick={async () => {
+								await sendMsgToAudioThread("setPlaylist", {
+									songs: playlistSongs.map((v, i) => ({
+										ncmId: String(v.id),
+										localFile: "",
+										duration: 0,
+										origOrder: i,
+									})),
+								});
+								await sendMsgToAudioThread("jumpToSong", {
+									songIndex: i,
+								});
+							}}
+						>
 							<img
 								width={32}
 								height={32}

@@ -45,6 +45,7 @@ attohttpc = { version =  "0.25", features = ["json"] }
 ringbuf = "0.3.3"
 rubato = "0.12.0"
 arrayvec = "0.7.2"
+rb = "0.4.1"
 
 [dependencies.tauri-plugin-sql]
 git = "https://github.com/tauri-apps/plugins-workspace"

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/tauri";
-import { listen } from "@tauri-apps/api/event";
+import { listen, EventCallback } from "@tauri-apps/api/event";
 import { uid } from "uid";
 
 const msgTasks = new Map<string, (value: any) => void>();
@@ -16,7 +16,20 @@ listen<{
 	}
 });
 
-export function sendMsgToAudioThread(msgType: string, data: any): Promise<any> {
+export interface AudioThreadMessage {
+	type: string;
+	data: any;
+}
+
+export const invokeSyncStatus = () => invoke("init_audio_thread");
+export const listenAudioThreadEvent = (
+	handler: EventCallback<AudioThreadMessage>,
+) => listen("on-audio-thread-event", handler);
+
+export function sendMsgToAudioThread(
+	msgType: string,
+	data: any = {},
+): Promise<any> {
 	const id = uid(32) + Date.now();
 	return new Promise((resolve) => {
 		msgTasks.set(id, resolve);

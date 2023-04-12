@@ -42,11 +42,11 @@ export class NCMAPI {
 		const client = await this.getClient();
 		const urlObj = new URL(url);
 		const cookies = this.cookies.map((v) => `${v.Name}=${v.Value}`).join("; ");
-		console.log(
-			url,
-			data,
-			this.cookies.map((v) => `${v.Name}=${v.Value}`),
-		);
+		// console.log(
+		// 	url,
+		// 	data,
+		// 	this.cookies.map((v) => `${v.Name}=${v.Value}`),
+		// );
 		if (urlObj.pathname.startsWith("/eapi")) {
 			const res = await client.post<number[]>(
 				url,
@@ -66,7 +66,7 @@ export class NCMAPI {
 					},
 				},
 			);
-			console.log(res);
+			// console.log(res);
 			if (res.ok) {
 				if (res.data[0] === 123) {
 					// 尝试直接解码，可能是明文
@@ -140,4 +140,68 @@ export const userPlaylistAtom = atom(async (get) => {
 			includeVideo: true,
 		}),
 	);
+});
+
+export interface NCMSongDetail {
+	name: string;
+	id: number;
+	ar: {
+		id: number;
+		name: string;
+	}[];
+	al: {
+		id: number;
+		name: string;
+		picUrl: string;
+		tns: string[];
+	};
+	dt: number;
+	alia: string[];
+	tns: string[];
+}
+
+const songsCache = new Map<number, NCMSongDetail>();
+
+export const getSongDetailAtom = atom((get) => {
+	const ncm = get(ncmAPIAtom);
+	return async (ids: number[]) => {
+		const results = new Map<number, NCMSongDetail>();
+		const uncachedIds = ids.filter((id) => {
+			const c = songsCache.get(id);
+			if (c) {
+				results.set(id, c);
+				return false;
+			} else {
+				return true;
+			}
+		});
+		const songsThreads = [];
+		for (let i = 0; i < uncachedIds.length; i += 1000) {
+			const postData = [];
+			for (let j = 0; j < Math.min(1000, uncachedIds.length - i); j++) {
+				postData.push({
+					id: uncachedIds[i + j],
+					v: 0,
+				});
+			}
+			songsThreads.push(
+				ncm
+					.request(
+						"https://music.163.com/eapi/v3/song/detail",
+						JSON.stringify({
+							c: JSON.stringify(postData),
+							e_r: true,
+						}),
+					)
+					.then((v) => {
+						for (const song of v.songs) {
+							results.set(song.id, song);
+							songsCache.set(song.id, song);
+						}
+					}),
+			);
+		}
+		await Promise.all(songsThreads);
+		return ids.map((v) => results.get(v)!!);
+	};
 });
