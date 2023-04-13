@@ -1,7 +1,9 @@
 import React from "react";
 import "./index.sass";
 
-export const TextMarquee: React.FC<React.PropsWithChildren<React.HTMLProps<"div">>> = (props) => {
+export const TextMarquee: React.FC<
+	React.PropsWithChildren<React.HTMLProps<"div">>
+> = (props) => {
 	const outerDiv = React.useRef<HTMLDivElement>(null);
 	const innerDiv = React.useRef<HTMLDivElement>(null);
 	const currentAnimationsRef = React.useRef(new Set<Animation>());
@@ -53,15 +55,12 @@ export const TextMarquee: React.FC<React.PropsWithChildren<React.HTMLProps<"div"
 		outerDiv.current?.classList.remove("animating");
 		currentAnimationsRef.current.clear();
 	};
-	
-	const {
-		children,
-		...otherProps
-	} = props;
+
+	const { children, ...otherProps } = props;
 
 	return (
 		<div
-		    {...otherProps}
+			{...otherProps}
 			ref={outerDiv}
 			className="text-marquee"
 			onMouseEnter={onMouseEnter}

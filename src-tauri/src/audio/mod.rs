@@ -1,13 +1,10 @@
-
 use std::time::Duration;
 
-use std::{thread::spawn};
-use std::{
-    sync::{
-        mpsc::{channel, Receiver, Sender}, Mutex,
-    },
+use std::sync::{
+    mpsc::{channel, Receiver, Sender},
+    Mutex,
 };
-
+use std::thread::spawn;
 
 use tauri::Manager;
 

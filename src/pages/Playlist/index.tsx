@@ -14,8 +14,8 @@ import {
 } from "react-virtualized";
 
 const cache = new CellMeasurerCache({
-    defaultHeight: 64,
-    fixedWidth: true
+	defaultHeight: 64,
+	fixedWidth: true,
 });
 
 export const PlaylistPage: React.FC = () => {
@@ -56,7 +56,13 @@ export const PlaylistPage: React.FC = () => {
 	const rowRender: ListRowRenderer = ({ index, key, style, parent }) => {
 		const v = playlistSongs!![index];
 		return (
-			<CellMeasurer cache={cache} key={key} rowIndex={index} overscanRowCount={10}  parent={parent}>
+			<CellMeasurer
+				cache={cache}
+				key={key}
+				rowIndex={index}
+				overscanRowCount={10}
+				parent={parent}
+			>
 				<div
 					className="song-btn"
 					key={`playlist-songs-${v.id}`}

@@ -38,7 +38,11 @@ export class NCMAPI {
 		return client;
 	}
 
-	async request<T = any>(url: string, data: string): Promise<T> {
+	async request<T = any>(
+		url: string,
+		data: string,
+		resType: ResponseType = ResponseType.Binary,
+	): Promise<T> {
 		const client = await this.getClient();
 		const urlObj = new URL(url);
 		const cookies = this.cookies.map((v) => `${v.Name}=${v.Value}`).join("; ");
@@ -81,7 +85,6 @@ export class NCMAPI {
 				}
 				const de = await eapiDecrypt(binaryToHex(res.data));
 				const hex = JSON.parse(de);
-				console.log(hex);
 				return hex;
 			} else {
 				if (res.data[0] === 123) {
@@ -97,7 +100,7 @@ export class NCMAPI {
 			}
 		} else {
 			const res = await client.post<T>(url, Body.text(data), {
-				responseType: ResponseType.JSON,
+				responseType: resType,
 				headers: {
 					cookie: cookies,
 					origin: "orpheus://orpheus",
@@ -134,7 +137,7 @@ export const userPlaylistAtom = atom(async (get) => {
 	return await api.request(
 		"https://music.163.com/eapi/user/playlist",
 		JSON.stringify({
-			uid: userInfo.account.id,
+			uid: userInfo?.account?.id || 0,
 			limit: 30,
 			offset: 0,
 			includeVideo: true,
@@ -192,6 +195,7 @@ export const getSongDetailAtom = atom((get) => {
 							c: JSON.stringify(postData),
 							e_r: true,
 						}),
+						ResponseType.JSON,
 					)
 					.then((v) => {
 						for (const song of v.songs) {
