@@ -1,9 +1,10 @@
 .playbar
     display: flex
     align-items: center
+    gap: 16px
 .playing-song
     display: flex
-    flex: 1
+    flex: 2
     min-width: 0
     overflow: hidden
     gap: 32px
@@ -17,13 +18,23 @@
     flex: 1
     overflow: hidden
 .play-controls
-    flex: 1
+    flex: 3
+    display: flex
+    justify-content: center
+    align-items: center
+    flex-direction: column
+    align-items: stretch
+    max-width: 512px
+.play-controls-buttons
     display: flex
     justify-content: center
     align-items: center
     gap: 16px
     button
         background-color: transparent
+        cursor: pointer
         border: none
+        img
+            height: 32px
 .side-buttons
-    flex: 1
+    flex: 2

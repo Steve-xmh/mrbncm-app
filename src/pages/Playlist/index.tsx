@@ -1,16 +1,30 @@
 import { useAtomValue } from "jotai";
 import { useParams } from "react-router-dom";
-import { getSongDetailAtom, ncmAPIAtom } from "../../ncm-api";
-import { useEffect, useState } from "react";
+import { NCMSongDetail, getSongDetailAtom, ncmAPIAtom } from "../../ncm-api";
+import { useEffect, useRef, useState } from "react";
 import "./index.sass";
 import { BarLoader } from "react-spinners";
 import { sendMsgToAudioThread } from "../../tauri-api";
+import {
+	AutoSizer,
+	CellMeasurer,
+	CellMeasurerCache,
+	List,
+	ListRowRenderer,
+} from "react-virtualized";
+
+const cache = new CellMeasurerCache({
+    defaultHeight: 64,
+    fixedWidth: true
+});
 
 export const PlaylistPage: React.FC = () => {
 	const ncm = useAtomValue(ncmAPIAtom);
 	const getSongDetail = useAtomValue(getSongDetailAtom);
 	const [playlist, setPlaylist] = useState({});
-	const [playlistSongs, setPlaylistSongs] = useState<any[] | null>(null);
+	const [playlistSongs, setPlaylistSongs] = useState<NCMSongDetail[] | null>(
+		null,
+	);
 	const param = useParams();
 
 	useEffect(() => {
@@ -38,6 +52,43 @@ export const PlaylistPage: React.FC = () => {
 			};
 		}
 	}, [param.id, ncm]);
+
+	const rowRender: ListRowRenderer = ({ index, key, style, parent }) => {
+		const v = playlistSongs!![index];
+		return (
+			<CellMeasurer cache={cache} key={key} rowIndex={index} overscanRowCount={10}  parent={parent}>
+				<div
+					className="song-btn"
+					key={`playlist-songs-${v.id}`}
+					onDoubleClick={async () => {
+						if (playlistSongs) {
+							await sendMsgToAudioThread("setPlaylist", {
+								songs: playlistSongs.map((v, i) => ({
+									ncmId: String(v.id),
+									localFile: "",
+									duration: 0,
+									origOrder: i,
+								})),
+							});
+							await sendMsgToAudioThread("jumpToSong", {
+								songIndex: index,
+							});
+						}
+					}}
+				>
+					<img
+						width={32}
+						height={32}
+						alt={`歌曲 ${v.name} 的专辑图片`}
+						className="song-album-img"
+						src={v?.al?.picUrl || ""}
+						loading="lazy"
+					/>
+					<div>{v.name}</div>
+				</div>
+			</CellMeasurer>
+		);
+	};
 
 	return (
 		<div className="playlist-page">
@@ -86,37 +137,19 @@ export const PlaylistPage: React.FC = () => {
 			</div>
 			<div className="playlist-songs">
 				{playlistSongs ? (
-					playlistSongs.map((v, i) => (
-						<div
-							className="song-btn"
-							key={`playlist-songs-${v.id}`}
-							onDoubleClick={async () => {
-								await sendMsgToAudioThread("setPlaylist", {
-									songs: playlistSongs.map((v, i) => ({
-										ncmId: String(v.id),
-										localFile: "",
-										duration: 0,
-										origOrder: i,
-									})),
-								});
-								await sendMsgToAudioThread("jumpToSong", {
-									songIndex: i,
-								});
-							}}
-						>
-							<img
-								width={32}
-								height={32}
-								alt={`歌曲 ${v.name} 的专辑图片`}
-								className="song-album-img"
-								src={v?.al?.picUrl || ""}
-								loading="lazy"
+					<AutoSizer>
+						{({ width, height }) => (
+							<List
+								width={width}
+								height={height}
+								rowCount={playlistSongs.length}
+								rowHeight={64}
+								rowRenderer={rowRender}
 							/>
-							<div>{v.name}</div>
-						</div>
-					))
+						)}
+					</AutoSizer>
 				) : (
-					<BarLoader />
+					<BarLoader color="white" />
 				)}
 			</div>
 		</div>

@@ -9,8 +9,10 @@ import { useAtomValue } from "jotai";
 import IconRewind from "../../assets/icon_rewind.svg?url";
 import IconForward from "../../assets/icon_forward.svg?url";
 import IconPlay from "../../assets/icon_play.svg?url";
+import IconPause from "../../assets/icon_pause.svg?url";
 import { TextMarquee } from "../TextMarquee";
 import "./index.sass";
+import { NowPlayingSlider } from "../NowPlayingSlider";
 
 export const BottomPlayControls: React.FC = () => {
 	const getSongDetail = useAtomValue(getSongDetailAtom);
@@ -38,6 +40,9 @@ export const BottomPlayControls: React.FC = () => {
 			} else if (evt.payload.type === "loadingAudio") {
 				console.log(evt);
 				setNCMID(evt.payload.data.ncmId);
+			} else if (evt.payload.type === "playStatus") {
+				console.log(evt);
+				setPlaying(evt.payload.data.isPlaying);
 			}
 		}).then((v) => {
 			invokeSyncStatus();
@@ -77,34 +82,49 @@ export const BottomPlayControls: React.FC = () => {
 					src={songInfo?.al?.picUrl || ""}
 				/>
 				<div className="song-info">
-					<TextMarquee style={{ whiteSpace: "nowrap" }}>{songInfo?.name || ""}</TextMarquee>
+					<TextMarquee style={{ whiteSpace: "nowrap" }}>
+						{songInfo?.name || ""}
+					</TextMarquee>
 					<TextMarquee style={{ whiteSpace: "nowrap" }}>
 						{songInfo?.ar?.map((v) => v.name).join(" - ")}
 					</TextMarquee>
 				</div>
 			</div>
 			<div className="play-controls">
-				<button
-					onClick={() => {
-						sendMsgToAudioThread("prevSong");
-					}}
-				>
-					<img alt="上一首歌曲" src={IconRewind} />
-				</button>
-				<button
-					onClick={() => {
-						sendMsgToAudioThread("prevSong");
-					}}
-				>
-					<img alt="播放/暂停" src={IconPlay} />
-				</button>
-				<button
-					onClick={() => {
-						sendMsgToAudioThread("nextSong");
-					}}
-				>
-					<img alt="下一首歌曲" src={IconForward} />
-				</button>
+				<div className="play-controls-buttons">
+					<button
+						onClick={() => {
+							sendMsgToAudioThread("prevSong");
+						}}
+					>
+						<img alt="上一首歌曲" src={IconRewind} />
+					</button>
+					{isPlaying ? (
+						<button
+							onClick={() => {
+								sendMsgToAudioThread("pauseAudio");
+							}}
+						>
+							<img alt="播放/暂停" src={IconPause} />
+						</button>
+					) : (
+						<button
+							onClick={() => {
+								sendMsgToAudioThread("resumeAudio");
+							}}
+						>
+							<img alt="播放/暂停" src={IconPlay} />
+						</button>
+					)}
+					<button
+						onClick={() => {
+							sendMsgToAudioThread("nextSong");
+						}}
+					>
+						<img alt="下一首歌曲" src={IconForward} />
+					</button>
+				</div>
+				<NowPlayingSlider max={duration} value={playPos} />
 			</div>
 			<div className="side-buttons"></div>
 		</div>

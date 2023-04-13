@@ -3,6 +3,27 @@ import svgLoader from "vite-svg-loader";
 import react from "@vitejs/plugin-react";
 import jotaiDebugLabel from "jotai/babel/plugin-debug-label";
 import jotaiReactRefresh from "jotai/babel/plugin-react-refresh";
+import path from "path";
+import fs from "fs";
+
+const WRONG_CODE = `import { bpfrpt_proptype_WindowScroller } from "../WindowScroller.js";`;
+
+function reactVirtualized() {
+	return {
+		name: "my:react-virtualized",
+		configResolved() {
+			const file = require
+				.resolve("react-virtualized")
+				.replace(
+					path.join("dist", "commonjs", "index.js"),
+					path.join("dist", "es", "WindowScroller", "utils", "onScroll.js"),
+				);
+			const code = fs.readFileSync(file, "utf-8");
+			const modified = code.replace(WRONG_CODE, "");
+			fs.writeFileSync(file, modified);
+		},
+	};
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,6 +34,7 @@ export default defineConfig({
 			},
 		}),
 		svgLoader(),
+		reactVirtualized(),
 	],
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
