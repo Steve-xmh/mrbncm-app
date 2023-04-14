@@ -6,7 +6,7 @@ use std::sync::{
 };
 use std::thread::spawn;
 
-use tauri::Manager;
+use tauri::{Manager, State};
 
 mod output;
 mod player;
@@ -81,7 +81,7 @@ pub enum AudioThreadEvent {
     #[serde(rename_all = "camelCase")]
     PlayPosition { position: f64 },
     #[serde(rename_all = "camelCase")]
-    LoadPosition { position: f64 },
+    LoadProgress { position: f64 },
     #[serde(rename_all = "camelCase")]
     LoadAudio { ncm_id: String, duration: f64 },
     #[serde(rename_all = "camelCase")]
@@ -97,6 +97,8 @@ pub enum AudioThreadEvent {
     },
     #[serde(rename_all = "camelCase")]
     PlayStatus { is_playing: bool },
+    #[serde(rename_all = "camelCase")]
+    LoadError { error: String },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -152,7 +154,15 @@ fn send_msg_to_audio_thread_inner(msg: AudioThreadMessage) -> std::result::Resul
 }
 
 #[tauri::command]
-pub fn send_msg_to_audio_thread(msg: AudioThreadMessage) -> std::result::Result<(), String> {
+pub fn send_msg_to_audio_thread(
+    app_state: State<crate::AppState>,
+    msg: AudioThreadMessage,
+) -> std::result::Result<(), String> {
+    if let AudioThreadMessage::SetCookie { cookie, .. } = &msg {
+        *app_state.cookie.lock().unwrap() = cookie.to_owned();
+        let mut session = app_state.session.lock().unwrap();
+        session.header("cookie", cookie.to_owned());
+    }
     send_msg_to_audio_thread_inner(msg)
 }
 

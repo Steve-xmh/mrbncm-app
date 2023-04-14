@@ -64,8 +64,9 @@ export const PlaylistPage: React.FC = () => {
 				parent={parent}
 			>
 				<div
-					className="song-btn"
+					className={`song-btn ${index % 2 ? "odd" : "even"}`}
 					key={`playlist-songs-${v.id}`}
+					style={style}
 					onDoubleClick={async () => {
 						if (playlistSongs) {
 							await sendMsgToAudioThread("setPlaylist", {
@@ -87,7 +88,13 @@ export const PlaylistPage: React.FC = () => {
 						height={32}
 						alt={`歌曲 ${v.name} 的专辑图片`}
 						className="song-album-img"
-						src={v?.al?.picUrl || ""}
+						src={
+							v?.al?.picUrl
+								? `${v.al.picUrl}?imageView&enlarge=1&thumbnail=${
+										32 * window.devicePixelRatio
+								  }y${32 * window.devicePixelRatio}`
+								: ""
+						}
 						loading="lazy"
 					/>
 					<div>{v.name}</div>

@@ -1,15 +1,16 @@
 use std::{
-    io::{ErrorKind, Read, Seek, Write},
+    io::{ErrorKind, Read, Write},
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, AtomicU16, AtomicUsize},
-        Arc,
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard,
     },
     thread::{spawn, JoinHandle},
 };
 
-use attohttpc::Session;
+use attohttpc::{RequestBuilder, Session};
 use cpal::traits::StreamTrait;
+use serde::de::DeserializeOwned;
 use symphonia::core::errors::Error as DecodeError;
 use symphonia::core::{
     codecs::{CodecRegistry, Decoder},
@@ -22,6 +23,30 @@ use tauri::Manager;
 use crate::audio::{AudioThreadEvent, NCMResponse, NCMSongResponse};
 
 use super::{output::AudioOutput, AudioThreadMessage, SongData};
+
+#[derive(Default, Clone, PartialEq)]
+pub enum DownloadStatus {
+    #[default]
+    Idle,
+    QueryingUrl,
+    GetUrl(String, usize),
+    DownloadingAudio(f64),
+    Downloaded,
+    Error(String),
+}
+
+impl DownloadStatus {
+    pub fn get_download_progress(&self) -> f64 {
+        match self {
+            Self::Idle => 1.,
+            Self::QueryingUrl => -1.,
+            Self::GetUrl(_, _) => 0.,
+            Self::DownloadingAudio(p) => *p,
+            Self::Downloaded => 1.,
+            Self::Error(_) => -2.,
+        }
+    }
+}
 
 pub struct AudioPlayer {
     app: tauri::AppHandle,
@@ -36,9 +61,10 @@ pub struct AudioPlayer {
     current_play_index: usize,
     current_song: SongData,
     stop_download_atom: Arc<AtomicBool>,
-    full_downloaded_atom: Arc<AtomicBool>,
-    load_position: Arc<AtomicU16>,
+
     download_thread_handle: Option<JoinHandle<()>>,
+    download_state: Arc<Mutex<DownloadStatus>>,
+
     format_result: Option<ProbeResult>,
     decoder: Option<Box<dyn Decoder>>,
     timebase: TimeBase,
@@ -65,8 +91,7 @@ impl AudioPlayer {
         let playlist = Vec::<SongData>::with_capacity(4096);
         let current_song = SongData::default();
         let stop_download_atom = Arc::new(AtomicBool::new(false));
-        let full_downloaded_atom = Arc::new(AtomicBool::new(false));
-        let load_position = Arc::new(AtomicU16::new(0));
+        let download_state = Arc::new(Mutex::new(DownloadStatus::Idle));
         let download_thread_handle: Option<JoinHandle<()>> = None;
         let format_result: Option<ProbeResult> = None;
         let decoder: Option<Box<dyn Decoder>> = None;
@@ -82,8 +107,7 @@ impl AudioPlayer {
             playlist,
             current_song,
             stop_download_atom,
-            full_downloaded_atom,
-            load_position,
+            download_state,
             download_thread_handle,
             format_result,
             decoder,
@@ -147,6 +171,7 @@ impl AudioPlayer {
                 self.is_playing = true;
                 self.player.stream().play().unwrap();
                 println!("播放上一首歌曲！");
+                self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
             }
             AudioThreadMessage::NextSong { .. } => {
@@ -155,6 +180,7 @@ impl AudioPlayer {
                 self.is_playing = true;
                 self.player.stream().play().unwrap();
                 println!("播放下一首歌曲！");
+                self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
             }
             AudioThreadMessage::JumpToSong { song_index, .. } => {
@@ -168,6 +194,7 @@ impl AudioPlayer {
                 }
                 self.player.stream().play().unwrap();
                 println!("播放第 {} 首歌曲！", *song_index + 1);
+                self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
             }
             AudioThreadMessage::SetPlaylist { songs, .. } => {
@@ -184,15 +211,21 @@ impl AudioPlayer {
                         is_playing: self.is_playing,
                         duration: self.play_duration,
                         position: self.play_position,
-                        load_position: self.load_position.load(std::sync::atomic::Ordering::SeqCst)
-                            as f64
-                            / u16::MAX as f64,
+                        load_position: self.download_state.lock().unwrap().get_download_progress(),
                         playlist: self.playlist.to_owned(),
                     },
                 );
             }
             other => dbg!(other).ret(&self.app, None::<()>).unwrap(),
         }
+    }
+
+    fn get_download_state(&self) -> MutexGuard<'_, DownloadStatus> {
+        self.download_state.lock().unwrap()
+    }
+
+    fn set_download_state(&self, state: DownloadStatus) {
+        *self.download_state.lock().unwrap() = state;
     }
 
     pub fn process_audio(&mut self) {
@@ -221,10 +254,7 @@ impl AudioPlayer {
                     },
                     Err(DecodeError::IoError(err)) => match err.kind() {
                         ErrorKind::UnexpectedEof => {
-                            if self
-                                .full_downloaded_atom
-                                .load(core::sync::atomic::Ordering::SeqCst)
-                            {
+                            if self.get_download_state().get_download_progress() == 1. {
                                 is_song_finished = true;
                             }
                         }
@@ -262,76 +292,173 @@ impl AudioPlayer {
                 );
             }
         } else {
-            // 选择下一首歌
-            if self.playlist.is_empty() {
-                self.is_playing = false;
-            } else {
-                // 如果存在则中断正在流式播放的歌曲下载线程
-                self.stop_download_atom
-                    .store(true, core::sync::atomic::Ordering::SeqCst);
-                if let Some(handle) = self.download_thread_handle.take() {
-                    let _ = handle.join();
-                }
-                self.stop_download_atom
-                    .store(false, core::sync::atomic::Ordering::SeqCst);
-                // 选歌
-                self.current_play_index += 1;
-                if self.current_play_index >= self.playlist.len() {
-                    self.current_play_index = 0;
-                }
-                self.current_song = self.playlist[self.current_play_index].to_owned();
-                println!(
-                    "即将尝试播放下一首歌：{} ({})",
-                    self.current_song.ncm_id, self.current_song.local_file
-                );
-                let _ = self.app.emit_all(
-                    "on-audio-thread-event",
-                    AudioThreadEvent::LoadingAudio {
-                        ncm_id: self.current_song.ncm_id.to_owned(),
-                    },
-                );
-                // 是否有本地文件
-                if let Ok(file) = std::fs::OpenOptions::new()
-                    .read(true)
-                    .open(&self.current_song.local_file)
-                {
-                    self.full_downloaded_atom
-                        .store(true, core::sync::atomic::Ordering::SeqCst);
-                    let source_stream =
-                        MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
-                    self.format_result = self
-                        .probe
-                        .format(
-                            &Default::default(),
-                            source_stream,
-                            &Default::default(),
-                            &Default::default(),
-                        )
-                        .ok();
-                } else {
-                    // 准备联网获取
-                    let post_data = format!(
-                        "{{\"ids\":\"[{}]\",\"level\":\"hires\",\"encodeType\":\"flac\"}}",
-                        self.current_song.ncm_id
-                    );
-                    let res = self
-                        .session
-                        .post("https://interface.music.163.com/eapi/song/enhance/player/url/v1")
-                        .header("content-type", "application/x-www-form-urlencoded")
-                        .bytes(
-                            concat_string::concat_string!(
-                                "params=",
-                                crate::eapi::eapi_encrypt_for_request(
-                                    "/api/song/enhance/player/url/v1",
-                                    &post_data
+            let download_state = self.download_state.clone();
+            let download_state = download_state.lock().unwrap().clone();
+            match download_state {
+                DownloadStatus::Idle => {
+                    // 选择下一首歌
+                    if self.playlist.is_empty() {
+                        self.is_playing = false;
+                    } else {
+                        // 如果存在则中断正在流式播放的歌曲下载线程
+                        self.take_and_wait_thread();
+                        // 选歌
+                        self.current_play_index += 1;
+                        if self.current_play_index >= self.playlist.len() {
+                            self.current_play_index = 0;
+                        }
+                        self.current_song = self.playlist[self.current_play_index].to_owned();
+                        println!(
+                            "即将尝试播放下一首歌：{} ({})",
+                            self.current_song.ncm_id, self.current_song.local_file
+                        );
+                        let _ = self.app.emit_all(
+                            "on-audio-thread-event",
+                            AudioThreadEvent::LoadingAudio {
+                                ncm_id: self.current_song.ncm_id.to_owned(),
+                            },
+                        );
+                        // 是否有本地文件
+                        if let Ok(file) = std::fs::OpenOptions::new()
+                            .read(true)
+                            .open(&self.current_song.local_file)
+                        {
+                            let source_stream = MediaSourceStream::new(
+                                Box::new(file),
+                                MediaSourceStreamOptions::default(),
+                            );
+                            self.format_result = self
+                                .probe
+                                .format(
+                                    &Default::default(),
+                                    source_stream,
+                                    &Default::default(),
+                                    &Default::default(),
                                 )
-                            )
-                            .as_bytes(),
-                        )
-                        .send()
-                        .unwrap()
-                        .json::<NCMResponse<Vec<NCMSongResponse>>>()
+                                .ok();
+                            self.set_download_state(DownloadStatus::Downloaded);
+                        } else {
+                            self.get_audio_url_in_thread();
+                        }
+                    }
+                }
+                DownloadStatus::QueryingUrl => {
+                    let _ = self.app.emit_all(
+                        "on-audio-thread-event",
+                        AudioThreadEvent::LoadProgress { position: -1. },
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                DownloadStatus::GetUrl(song_url, song_size) => {
+                    let _ = self.app.emit_all(
+                        "on-audio-thread-event",
+                        AudioThreadEvent::LoadProgress { position: 0. },
+                    );
+                    self.take_and_wait_thread();
+                    self.download_audio_in_thread(song_url.as_str(), song_size)
+                }
+                DownloadStatus::DownloadingAudio(p) => {
+                    let _ = self.app.emit_all(
+                        "on-audio-thread-event",
+                        AudioThreadEvent::LoadProgress { position: p },
+                    );
+                    let output_file_reader = std::fs::OpenOptions::new()
+                        .read(true)
+                        .open(&self.audio_current_tmp_file)
                         .unwrap();
+                    let source_stream = MediaSourceStream::new(
+                        Box::new(output_file_reader.try_clone().unwrap()),
+                        MediaSourceStreamOptions::default(),
+                    );
+                    match self.probe.format(
+                        &Default::default(),
+                        source_stream,
+                        &Default::default(),
+                        &Default::default(),
+                    ) {
+                        Ok(result) => {
+                            self.format_result = Some(result);
+                        }
+                        Err(err) => match err {
+                            DecodeError::Unsupported(_)
+                            | DecodeError::DecodeError(_)
+                            | DecodeError::IoError(_) => {
+                                if self.get_download_state().get_download_progress() == 1. {
+                                    self.set_download_state(DownloadStatus::Downloaded);
+                                } else {
+                                    std::thread::sleep(std::time::Duration::from_millis(10));
+                                }
+                            }
+                            _ => {
+                                self.take_and_wait_thread();
+                                self.set_download_state(DownloadStatus::Idle);
+                            }
+                        },
+                    }
+                }
+                DownloadStatus::Downloaded => {
+                    let _ = self.app.emit_all(
+                        "on-audio-thread-event",
+                        AudioThreadEvent::LoadProgress { position: 1. },
+                    );
+                    self.take_and_wait_thread();
+                    self.set_download_state(DownloadStatus::Idle);
+                }
+                DownloadStatus::Error(err) => {
+                    println!("下载失败，播放下一首歌: {err}");
+                    let _ = self.app.emit_all(
+                        "on-audio-thread-event",
+                        AudioThreadEvent::LoadError { error: err },
+                    );
+                    self.set_download_state(DownloadStatus::Idle);
+                    self.take_and_wait_thread();
+                }
+            }
+        }
+        if is_song_finished {
+            self.format_result = None;
+            self.decoder = None;
+        }
+    }
+
+    fn take_and_wait_thread(&mut self) {
+        self.stop_download_atom
+            .store(true, core::sync::atomic::Ordering::SeqCst);
+        if let Some(h) = self.download_thread_handle.take() {
+            let _ = h.join();
+        }
+        self.stop_download_atom
+            .store(false, core::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn get_audio_url_in_thread(&mut self) {
+        let post_data = format!(
+            "{{\"ids\":\"[{}]\",\"level\":\"hires\",\"encodeType\":\"flac\"}}",
+            self.current_song.ncm_id
+        );
+        let bytes = concat_string::concat_string!(
+            "params=",
+            crate::eapi::eapi_encrypt_for_request("/api/song/enhance/player/url/v1", &post_data)
+        );
+        let req = self
+            .session
+            .post("https://interface.music.163.com/eapi/song/enhance/player/url/v1")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .bytes(bytes.as_bytes().to_vec());
+
+        let mut state = self.download_state.lock().unwrap();
+        *state = DownloadStatus::QueryingUrl;
+        drop(state);
+
+        let state = self.download_state.clone();
+        let stop_downloaded_atom = self.stop_download_atom.clone();
+        self.download_thread_handle = Some(spawn(move || {
+            println!("正在请求播放元数据");
+            match recv_json::<NCMResponse<Vec<NCMSongResponse>>>(req) {
+                Ok(res) => {
+                    if stop_downloaded_atom.load(Ordering::SeqCst) {
+                        return;
+                    }
                     let song_url = res
                         .data
                         .as_ref()
@@ -346,102 +473,80 @@ impl AudioPlayer {
                         .as_ref()
                         .map(|x| x.first().map(|y| y.size).unwrap_or_default())
                         .unwrap_or_default();
-                    if song_url.is_empty() {
-                        // 歌曲链接不存在
-                        is_song_finished = true;
-                        println!("未找到音乐下载链接，跳过");
-                    } else {
-                        println!("正在流式播放 {song_url}");
-                        let mut output_file = std::fs::OpenOptions::new()
-                            .create(true)
-                            .truncate(true)
-                            .write(true)
-                            .open(&self.audio_current_tmp_file)
-                            .unwrap();
-                        let mut output_file_reader = std::fs::OpenOptions::new()
-                            .read(true)
-                            .open(&self.audio_current_tmp_file)
-                            .unwrap();
-                        if let Ok(mut song_res) = self.session.get(song_url).send() {
-                            let stop_downloaded_atom = self.stop_download_atom.clone();
-                            let full_downloaded_atom = self.full_downloaded_atom.clone();
-                            let _full_downloaded_atom = full_downloaded_atom.clone();
-                            let download_size_atom = Arc::new(AtomicUsize::new(0));
-                            let _download_size_atom = download_size_atom.clone();
-                            let _app = self.app.clone();
-                            self.download_thread_handle = Some(spawn(move || {
-                                let mut buf = [0u8; 1024];
-                                while let Ok(size) = song_res.read(&mut buf) {
-                                    let should_stopped = stop_downloaded_atom
-                                        .load(core::sync::atomic::Ordering::SeqCst);
-                                    if size == 0 || should_stopped {
-                                        if should_stopped {
-                                            println!("音频下载中断");
-                                        } else {
-                                            println!("音频下载完成");
-                                        }
-                                        break;
-                                    } else {
-                                        output_file.write_all(&buf[..size]).unwrap();
-                                        if _download_size_atom
-                                            .fetch_add(size, core::sync::atomic::Ordering::SeqCst)
-                                            == 0
-                                        {
-                                            output_file.sync_all().unwrap();
-                                        }
-                                    }
-                                }
-                                _full_downloaded_atom
-                                    .store(true, core::sync::atomic::Ordering::SeqCst);
-                            }));
-                            // 将头部下载下来，以确认格式
-                            while download_size_atom.load(std::sync::atomic::Ordering::SeqCst)
-                                < song_size.min(1024 * 16)
-                            {}
-                            loop {
-                                output_file_reader.rewind().unwrap();
-                                let source_stream = MediaSourceStream::new(
-                                    Box::new(output_file_reader.try_clone().unwrap()),
-                                    MediaSourceStreamOptions::default(),
-                                );
-                                match self.probe.format(
-                                    &Default::default(),
-                                    source_stream,
-                                    &Default::default(),
-                                    &Default::default(),
-                                ) {
-                                    Ok(result) => {
-                                        self.format_result = Some(result);
-                                        break;
-                                    }
-                                    Err(err) => match err {
-                                        DecodeError::Unsupported(_)
-                                        | DecodeError::DecodeError(_)
-                                        | DecodeError::IoError(_) => {
-                                            if full_downloaded_atom
-                                                .load(std::sync::atomic::Ordering::SeqCst)
-                                            {
-                                                is_song_finished = true;
-                                                break;
-                                            }
-                                        }
-                                        _ => {
-                                            is_song_finished = true;
-                                            break;
-                                        }
-                                    },
-                                }
-                            }
-                        } else {
-                            println!("下载失败，播放下一首歌");
-                        }
+                    *state.lock().unwrap() = DownloadStatus::GetUrl(song_url, song_size);
+                }
+                Err(err) => {
+                    if stop_downloaded_atom.load(Ordering::SeqCst) {
+                        return;
                     }
+                    *state.lock().unwrap() = DownloadStatus::Error(err.to_string());
                 }
             }
-        }
-        if is_song_finished {
-            self.format_result = None;
-            self.decoder = None;
-        }
+        }));
     }
+
+    fn download_audio_in_thread(&mut self, song_url: &str, song_size: usize) {
+        if song_url.is_empty() {
+            self.set_download_state(DownloadStatus::Idle);
+            println!("未找到音乐下载链接，跳过");
+            return;
+        }
+        println!("正在流式播放 {song_url}");
+        self.set_download_state(DownloadStatus::DownloadingAudio(0.0));
+        let req = self.session.get(song_url);
+        let state = self.download_state.clone();
+        let stop_downloaded_atom = self.stop_download_atom.clone();
+        let mut output_file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&self.audio_current_tmp_file)
+            .unwrap();
+        self.download_thread_handle = Some(spawn(move || match req.send() {
+            Ok(mut song_res) => {
+                if stop_downloaded_atom.load(Ordering::SeqCst) {
+                    return;
+                }
+                let mut buf = [0u8; 1024];
+                let mut downloaded = 0;
+                while let Ok(size) = song_res.read(&mut buf) {
+                    let should_stopped =
+                        stop_downloaded_atom.load(core::sync::atomic::Ordering::SeqCst);
+                    if size == 0 || should_stopped {
+                        if should_stopped {
+                            println!("音频下载中断");
+                        } else {
+                            println!("音频下载完成");
+                        }
+                        break;
+                    } else {
+                        if let Err(err) = output_file.write_all(&buf[..size]) {
+                            *state.lock().unwrap() = DownloadStatus::Error(err.to_string());
+                            return;
+                        }
+                        if downloaded == 0 {
+                            output_file.sync_all().unwrap();
+                        }
+                    }
+                    downloaded += size;
+                    *state.lock().unwrap() =
+                        DownloadStatus::DownloadingAudio(downloaded as f64 / song_size as f64);
+                }
+                *state.lock().unwrap() = DownloadStatus::Downloaded;
+            }
+            Err(err) => {
+                if stop_downloaded_atom.load(Ordering::SeqCst) {
+                    return;
+                }
+                *state.lock().unwrap() = DownloadStatus::Error(err.to_string());
+            }
+        }));
+    }
+}
+
+fn recv_json<D: DeserializeOwned>(
+    req: RequestBuilder<impl attohttpc::body::Body>,
+) -> Result<D, attohttpc::Error> {
+    let res = req.send()?;
+    res.json()
 }

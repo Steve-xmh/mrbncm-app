@@ -5,7 +5,28 @@ mod eapi;
 mod ncm;
 mod rc4;
 
+use std::sync::Mutex;
+
+use attohttpc::Session;
 use tauri::*;
+
+#[derive(Debug)]
+pub struct AppState {
+    pub cookie: Mutex<String>,
+    pub session: Mutex<Session>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        let mut session = Session::new();
+        session.header("origin", "orpheus://orpheus");
+        session.header("user-agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/2.10.7.200791");
+        Self {
+            cookie: Mutex::new("".into()),
+            session: Mutex::new(session),
+        }
+    }
+}
 
 fn recreate_window(app: &AppHandle) {
     #[cfg(debug_assertions)]
@@ -17,6 +38,7 @@ fn recreate_window(app: &AppHandle) {
     .inner_size(800., 600.)
     .min_inner_size(800., 600.)
     .title("MRBNCM App")
+    .theme(Some(Theme::Dark))
     .build()
     .expect("can't show original window");
     #[cfg(not(debug_assertions))]
@@ -24,6 +46,7 @@ fn recreate_window(app: &AppHandle) {
         .inner_size(800., 600.)
         .min_inner_size(800., 600.)
         .title("MRBNCM App")
+        .theme(Some(Theme::Dark))
         .build()
         .expect("can't show original window");
 }
@@ -42,9 +65,11 @@ fn main() {
 
     tauri::Builder::default()
         .system_tray(tray)
+        .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             eapi::tauri_eapi_encrypt,
             eapi::tauri_eapi_decrypt,
+            eapi::tauri_eapi_request,
             eapi::tauri_eapi_encrypt_for_request,
             audio::init_audio_thread,
             audio::send_msg_to_audio_thread,

@@ -1427,6 +1427,12 @@ svgo@^3.0.2:
     csso "^5.0.5"
     picocolors "^1.0.0"
 
+"tauri-plugin-sql-api@https://github.com/tauri-apps/tauri-plugin-sql":
+  version "0.0.0"
+  resolved "https://github.com/tauri-apps/tauri-plugin-sql#3a8b9a6b244df7512bc5ef8692cebdedbab3ccce"
+  dependencies:
+    "@tauri-apps/api" "^1.2.0"
+
 throttle-debounce@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/throttle-debounce/-/throttle-debounce-3.0.1.tgz#32f94d84dfa894f786c9a1f290e7a645b6a19abb"

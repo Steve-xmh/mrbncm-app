@@ -2,7 +2,7 @@ use super::resampler::Resampler;
 use cpal::{traits::*, *};
 use rb::*;
 use symphonia::core::{
-    audio::{Channels, RawSample, SampleBuffer, SignalSpec},
+    audio::{Channels, RawSample, SignalSpec},
     conv::{ConvertibleSample, IntoSample},
 };
 
@@ -18,7 +18,6 @@ pub trait AudioOutput {
 pub struct AudioStreamPlayer<T: AudioOutputSample> {
     config: StreamConfig,
     sample_format: SampleFormat,
-    sample_buf: Option<SampleBuffer<T>>,
     stream: Stream,
     prod: rb::Producer<T>,
     resampler: Option<Resampler<T>>,
@@ -130,7 +129,6 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
         stream,
         prod,
         resampler: None,
-        sample_buf: None,
         resampler_duration: 0,
         resampler_spec: SignalSpec {
             rate: 0,
