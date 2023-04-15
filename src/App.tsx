@@ -64,7 +64,7 @@ const UserInfoButton: React.FC = () => {
 };
 
 const UserPlaylists: React.FC = () => {
-	const playlists = useAtomValue(userPlaylistAtom).playlist ?? [];
+	const playlists = useAtomValue(userPlaylistAtom)?.playlist ?? [];
 
 	return (
 		<>

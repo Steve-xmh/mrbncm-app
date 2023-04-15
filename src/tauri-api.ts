@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen, EventCallback } from "@tauri-apps/api/event";
+import { getCurrent } from "@tauri-apps/api/window";
 import { uid } from "uid";
 
 const msgTasks = new Map<string, (value: any) => void>();
@@ -14,6 +15,9 @@ listen<{
 		msgTasks.delete(evt.payload.callbackId);
 		resolve(evt.payload.data);
 	}
+});
+addEventListener("load", () => {
+	getCurrent().show();
 });
 
 export interface AudioThreadMessage {

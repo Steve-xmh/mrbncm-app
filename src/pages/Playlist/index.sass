@@ -13,32 +13,43 @@
     align-items: center
     gap: 32px
 .playlist-info
-    gap: 16px
+    gap: min(2vh, 16px)
     display: flex
     flex-direction: column
 .playlist-name
-    font-size: 200%
+    font-size: min(3vw, 200%)
 .playlist-creator
     display: flex
     align-items: center
     gap: 16px
 .playlist-cover-img
     border-radius: 16px
+    width: min(20vw, 256px)
+    aspect-ratio: 1 / 1
 .playlist-creator-avatar-img
     border-radius: 50%
 .playlist-actions
     display: flex
+    gap: 8px
 .playlist-songs
     flex: 1
     min-height: 0
     overflow-y: auto
+.playlist-stat
+    opacity: 0.5
+    font-size: 75%
 .playlist-play-btn
     border: none
     background-color: #FFF2
     color: #FFFD
+    white-space: nowrap
     padding: 8px 16px
     border-radius: 8px
     cursor: pointer
+    &:hover
+        background-color: #FFF1
+    &:active
+        background-color: #0001
 .song-btn
     display: flex
     align-items: center
@@ -46,6 +57,7 @@
     gap: 16px
     height: 64px
     border-radius: 8px
+    cursor: default
     &.even
         background-color: #FFF1
         &:active

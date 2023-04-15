@@ -38,111 +38,47 @@ export class NCMAPI {
 		return client;
 	}
 
+	// rome-ignore lint/suspicious/noExplicitAny: <explanation>
 	async request<T = any>(
 		url: string,
-		data: string,
-		resType: ResponseType = ResponseType.Binary,
+		// rome-ignore lint/suspicious/noExplicitAny: <explanation>
+		data: any = {},
 	): Promise<T> {
-		const client = await this.getClient();
-		const urlObj = new URL(url);
-		const cookies = this.cookies.map((v) => `${v.Name}=${v.Value}`).join("; ");
-		// console.log(
-		// 	url,
-		// 	data,
-		// 	this.cookies.map((v) => `${v.Name}=${v.Value}`),
-		// );
-		if (urlObj.pathname.startsWith("/eapi")) {
-			const res = await client.post<number[]>(
-				url,
-				Body.form({
-					params: await eapiEncryptForRequest(
-						urlObj.pathname.replace("/eapi", "/api"),
-						data,
-					),
-				}),
-				{
-					responseType: ResponseType.Binary,
-					headers: {
-						cookie: cookies,
-						origin: "orpheus://orpheus",
-						"user-agent":
-							"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/2.10.7.200791",
-					},
-				},
-			);
-			// console.log(res);
-			if (res.ok) {
-				if (res.data[0] === 123) {
-					// 尝试直接解码，可能是明文
-					try {
-						const decoder = new TextDecoder();
-						const decoded = JSON.parse(
-							decoder.decode(new Uint8Array(res.data)),
-						);
-						console.log(decoded);
-						return decoded;
-					} catch {}
-				}
-				const de = await eapiDecrypt(binaryToHex(res.data));
-				const hex = JSON.parse(de);
-				return hex;
-			} else {
-				if (res.data[0] === 123) {
-					// 尝试直接解码，可能是明文
-					try {
-						const decoder = new TextDecoder();
-						throw JSON.parse(decoder.decode(new Uint8Array(res.data)));
-					} catch {}
-				}
-				const de = await eapiDecrypt(binaryToHex(res.data));
-				const hex = JSON.parse(de);
-				throw hex;
-			}
-		} else {
-			const res = await client.post<T>(url, Body.text(data), {
-				responseType: resType,
-				headers: {
-					cookie: cookies,
-					origin: "orpheus://orpheus",
-					"user-agent":
-						"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/2.10.7.200791",
-				},
-			});
-			return res.data;
-		}
+		return invoke("tauri_eapi_request", {
+			url,
+			data,
+		});
 	}
 }
 
-export const ncmAPIAtom = atom((get) => {
+export const ncmAPIAtom = atom(async (get) => {
 	const cookies = get(ncmCookieAtom);
-	sendMsgToAudioThread("setCookie", {
+	await sendMsgToAudioThread("setCookie", {
 		cookie: cookies.map((v) => `${v.Name}=${v.Value}`).join("; "),
 	});
 	return new NCMAPI(cookies);
 });
 
 export const userInfoAtom = atom(async (get) => {
-	const api = get(ncmAPIAtom);
-	return await api.request("https://music.163.com/api/nuser/account/get", "{}");
+	const api = await get(ncmAPIAtom);
+	return await api.request("https://music.163.com/api/nuser/account/get");
 });
 
 export const userSubCountAtom = atom(async (get) => {
-	const api = get(ncmAPIAtom);
-	return await api.request("https://music.163.com/api/subcount", "{}");
+	const api = await get(ncmAPIAtom);
+	return await api.request("https://music.163.com/api/subcount");
 });
 
 export const userPlaylistAtom = atom(async (get) => {
-	const api = get(ncmAPIAtom);
+	const api = await get(ncmAPIAtom);
 	const userInfo = await get(userInfoAtom);
-	return await api.request(
-		"https://music.163.com/eapi/user/playlist",
-		JSON.stringify({
-			uid: userInfo?.account?.id || 0,
-			limit: 30,
-			offset: 0,
-			includeVideo: true,
-		}),
-	);
+	const res = await api.request("https://music.163.com/eapi/user/playlist", {
+		uid: userInfo?.account?.id || 0,
+		limit: 30,
+		offset: 0,
+		includeVideo: true,
+	});
+	return res;
 });
 
 export interface NCMSongDetail {
@@ -165,8 +101,8 @@ export interface NCMSongDetail {
 
 const songsCache = new Map<number, NCMSongDetail>();
 
-export const getSongDetailAtom = atom((get) => {
-	const ncm = get(ncmAPIAtom);
+export const getSongDetailAtom = atom(async (get) => {
+	const ncm = await get(ncmAPIAtom);
 	return async (ids: number[]) => {
 		const results = new Map<number, NCMSongDetail>();
 		const uncachedIds = ids.filter((id) => {
@@ -189,14 +125,10 @@ export const getSongDetailAtom = atom((get) => {
 			}
 			songsThreads.push(
 				ncm
-					.request(
-						"https://music.163.com/eapi/v3/song/detail",
-						JSON.stringify({
-							c: JSON.stringify(postData),
-							e_r: true,
-						}),
-						ResponseType.JSON,
-					)
+					.request("https://music.163.com/eapi/v3/song/detail", {
+						c: JSON.stringify(postData),
+						e_r: true,
+					})
 					.then((v) => {
 						for (const song of v.songs) {
 							results.set(song.id, song);

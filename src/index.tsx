@@ -1,5 +1,5 @@
 import { Provider } from "jotai";
-import React from "react";
+import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.sass";
@@ -13,7 +13,9 @@ window.tapi = TAPI;
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 	<React.StrictMode>
 		<Provider>
-			<App />
+			<Suspense>
+				<App />
+			</Suspense>
 		</Provider>
 	</React.StrictMode>,
 );

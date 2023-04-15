@@ -45,6 +45,7 @@
       {
         "fullscreen": false,
         "resizable": true,
+        "visible": false,
         "title": "MRBNCM App",
         "label": "main",
         "width": 800,

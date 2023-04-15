@@ -38,6 +38,7 @@ fn recreate_window(app: &AppHandle) {
     .inner_size(800., 600.)
     .min_inner_size(800., 600.)
     .title("MRBNCM App")
+    .visible(false)
     .theme(Some(Theme::Dark))
     .build()
     .expect("can't show original window");
@@ -46,6 +47,7 @@ fn recreate_window(app: &AppHandle) {
         .inner_size(800., 600.)
         .min_inner_size(800., 600.)
         .title("MRBNCM App")
+        .visible(false)
         .theme(Some(Theme::Dark))
         .build()
         .expect("can't show original window");
