@@ -53,6 +53,7 @@ pub struct AudioPlayer {
     codecs: &'static CodecRegistry,
     probe: &'static Probe,
     player: Box<dyn AudioOutput>,
+    volume: f64,
     is_playing: bool,
     session: Session,
     audio_current_tmp_file: PathBuf,
@@ -102,6 +103,7 @@ impl AudioPlayer {
             codecs,
             probe,
             player,
+            volume: 1.,
             session,
             audio_current_tmp_file,
             playlist,
@@ -246,6 +248,11 @@ impl AudioPlayer {
                                     position: self.play_position,
                                 },
                             );
+                            if self.player.is_dead() {
+                                println!("[WARN][AT] 现有输出设备已断开，正在重新初始化播放器");
+                                self.player = super::output::init_audio_player();
+                                self.player.stream().play().unwrap();
+                            }
                             self.player.write(buf);
                         }
                         Err(err) => {

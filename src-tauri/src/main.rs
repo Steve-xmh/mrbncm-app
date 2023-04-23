@@ -29,6 +29,10 @@ impl Default for AppState {
 }
 
 fn recreate_window(app: &AppHandle) {
+    if let Some(win) = app.get_window("main") {
+        let _ = win.show();
+        return;
+    }
     #[cfg(debug_assertions)]
     tauri::WindowBuilder::new(
         app,

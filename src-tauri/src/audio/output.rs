@@ -1,3 +1,5 @@
+use std::sync::{Arc, atomic::AtomicBool};
+
 use super::resampler::Resampler;
 use cpal::{traits::*, *};
 use rb::*;
@@ -10,6 +12,7 @@ pub trait AudioOutput {
     fn stream_config(&self) -> &StreamConfig;
     fn sample_format(&self) -> SampleFormat;
     fn stream(&self) -> &Stream;
+    fn is_dead(&self) -> bool;
     fn stream_mut(&mut self) -> &mut Stream;
     fn write(&mut self, decoded: symphonia::core::audio::AudioBufferRef<'_>);
     fn flush(&mut self);
@@ -19,6 +22,7 @@ pub struct AudioStreamPlayer<T: AudioOutputSample> {
     config: StreamConfig,
     sample_format: SampleFormat,
     stream: Stream,
+    is_dead: Arc<AtomicBool>,
     prod: rb::Producer<T>,
     resampler: Option<Resampler<T>>,
     resampler_duration: usize,
@@ -62,6 +66,10 @@ impl<T: AudioOutputSample> AudioOutput for AudioStreamPlayer<T> {
 
     fn stream_mut(&mut self) -> &mut Stream {
         &mut self.stream
+    }
+    
+    fn is_dead(&self) -> bool {
+        self.is_dead.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     fn write(&mut self, decoded: symphonia::core::audio::AudioBufferRef<'_>) {
@@ -109,6 +117,8 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
     let ring = rb::SpscRb::<T>::new(ring_len);
     let prod = ring.producer();
     let cons = ring.consumer();
+    let is_dead = Arc::new(AtomicBool::new(false));
+    let is_dead_c = is_dead.clone();
     let stream = output
         .build_output_stream::<T, _, _>(
             &selected_config,
@@ -116,8 +126,9 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
                 let written = cons.read(data).unwrap_or(0);
                 data[written..].fill(T::MID);
             },
-            |err| {
+            move |err| {
                 println!("[WARN][AT] {err}");
+                is_dead_c.store(true, std::sync::atomic::Ordering::SeqCst);
             },
             None,
         )
@@ -128,6 +139,7 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
         sample_format: <T as SizedSample>::FORMAT,
         stream,
         prod,
+        is_dead,
         resampler: None,
         resampler_duration: 0,
         resampler_spec: SignalSpec {
@@ -139,9 +151,7 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
 
 pub fn init_audio_player() -> Box<dyn AudioOutput> {
     let output = cpal::default_host()
-        .output_devices()
-        .unwrap()
-        .next()
+        .default_output_device()
         .unwrap();
     println!(
         "已初始化输出音频设备为 {}",
