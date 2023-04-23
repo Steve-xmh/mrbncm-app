@@ -13,6 +13,7 @@ import IconPause from "../../assets/icon_pause.svg?url";
 import { TextMarquee } from "../TextMarquee";
 import "./index.sass";
 import { NowPlayingSlider } from "../NowPlayingSlider";
+import { LazyImage } from "../LazyImage";
 
 export const BottomPlayControls: React.FC = () => {
 	const getSongDetail = useAtomValue(getSongDetailAtom);
@@ -75,10 +76,11 @@ export const BottomPlayControls: React.FC = () => {
 	return (
 		<div className="playbar">
 			<div className="playing-song">
-				<img
+				<LazyImage
 					width={64}
 					height={64}
 					alt="专辑图片"
+					className="album-pic"
 					src={songInfo?.al?.picUrl || ""}
 				/>
 				<div className="song-info">

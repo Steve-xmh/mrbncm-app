@@ -12,6 +12,7 @@ import {
 	List,
 	ListRowRenderer,
 } from "react-virtualized";
+import { LazyImage } from "../../components/LazyImage";
 
 const cache = new CellMeasurerCache({
 	defaultHeight: 64,
@@ -98,7 +99,7 @@ export const PlaylistPage: React.FC = () => {
 						}
 					}}
 				>
-					<img
+					<LazyImage
 						width={32}
 						height={32}
 						alt={`歌曲 ${v.name} 的专辑图片`}
@@ -110,7 +111,6 @@ export const PlaylistPage: React.FC = () => {
 								  }y${32 * window.devicePixelRatio}`
 								: ""
 						}
-						loading="lazy"
 					/>
 					<div>{v.name}</div>
 				</div>
@@ -121,7 +121,7 @@ export const PlaylistPage: React.FC = () => {
 	return (
 		<div className="playlist-page">
 			<div className="playlist-top">
-				<img
+				<LazyImage
 					alt="播放列表图片"
 					className="playlist-cover-img"
 					src={playlist?.playlist?.coverImgUrl || ""}
@@ -135,7 +135,7 @@ export const PlaylistPage: React.FC = () => {
 						</div>
 					)}
 					<div className="playlist-creator">
-						<img
+						<LazyImage
 							width={32}
 							height={32}
 							alt="播放列表创建者头像"
@@ -209,7 +209,10 @@ export const PlaylistPage: React.FC = () => {
 						)}
 					</AutoSizer>
 				) : (
-					<BarLoader color="white" />
+					<div className="playlist-loading">
+						<BarLoader color="white" />
+						<div>正在加载歌单...</div>
+					</div>
 				)}
 			</div>
 		</div>

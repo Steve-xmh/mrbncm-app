@@ -9,14 +9,17 @@ import { Icon } from "@iconify/react";
 import settingIcon from "@iconify/icons-uil/setting";
 import playlistIcon from "@iconify/icons-mdi/playlist-music";
 import baselineHome from "@iconify/icons-ic/baseline-home";
+import outlineExpandMore from "@iconify/icons-ic/outline-expand-more";
+import outlineExpandLess from "@iconify/icons-ic/outline-expand-less";
 import { ErrorPage } from "./pages/Error";
 import { SettingsPage } from "./pages/Settings";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useAtomValue } from "jotai";
 import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
 import { PlaylistPage } from "./pages/Playlist";
 import { BarLoader } from "react-spinners";
 import { BottomPlayControls } from "./components/BottomPlayControls";
+import { LazyImage } from "./components/LazyImage";
 
 let navigate: NavigateFunction = (path) => {
 	location.hash = `#${path}`;
@@ -48,7 +51,7 @@ const UserInfoButton: React.FC = () => {
 	return (
 		<button className="sidebar-btn" onClick={() => {}}>
 			{userInfo?.profile?.avatarUrl ? (
-				<img
+				<LazyImage
 					width={32}
 					height={32}
 					alt="头像"
@@ -85,6 +88,8 @@ const UserPlaylists: React.FC = () => {
 };
 
 function App() {
+	const [playlistOpened, setPlaylistOpened] = useState(false);
+
 	return (
 		<div className="container">
 			<div className="upper-container">
@@ -99,20 +104,34 @@ function App() {
 						<Icon width={20} icon={baselineHome} inline className="icon" />
 						主页
 					</button>
-					<Suspense>
-						<div
-							style={{
-								minHeight: 0,
-								flex: 1,
-								overflowX: "hidden",
-								overflowY: "auto",
-								display: "flex",
-								flexDirection: "column",
-							}}
-						>
-							<UserPlaylists />
-						</div>
-					</Suspense>
+					<button
+						className="sidebar-btn"
+						onClick={() => setPlaylistOpened((v) => !v)}
+					>
+						<Icon
+							width={20}
+							icon={playlistOpened ? outlineExpandLess : outlineExpandMore}
+							inline
+							className="icon"
+						/>
+						{playlistOpened ? "收起歌单列表" : "展开歌单列表"}
+					</button>
+					{playlistOpened && (
+						<Suspense>
+							<div
+								style={{
+									minHeight: 0,
+									flex: 1,
+									overflowX: "hidden",
+									overflowY: "auto",
+									display: "flex",
+									flexDirection: "column",
+								}}
+							>
+								<UserPlaylists />
+							</div>
+						</Suspense>
+					)}
 					{/* <div className="spacer" /> */}
 					<Suspense>
 						<UserInfoButton />
