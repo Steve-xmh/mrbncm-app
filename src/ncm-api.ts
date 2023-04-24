@@ -56,7 +56,8 @@ export const ncmAPIAtom = atom(async (get) => {
 	await sendMsgToAudioThread("setCookie", {
 		cookie: cookies.map((v) => `${v.Name}=${v.Value}`).join("; "),
 	});
-	return new NCMAPI(cookies);
+	const api = new NCMAPI(cookies);
+	return api;
 });
 
 export const userInfoAtom = atom(async (get) => {

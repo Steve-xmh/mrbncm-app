@@ -1,0 +1,38 @@
+.main-page
+    padding: 16px
+    display: flex
+    flex-direction: column
+    margin: 0 auto
+    gap: 16px
+    .recommend
+        display: flex
+        flex-wrap: wrap
+        gap: 16px
+        > *
+            flex: 1 1 0px
+            display: flex
+            justify-content: center
+            align-items: flex-start
+    .head-card
+        border: none
+        background: none
+        color: inherit
+        text-align: left
+        display: flex
+        flex-direction: column
+        max-width: 150px
+        padding: 0
+        > img
+            aspect-ratio: 1 / 1
+            width: 150px
+            max-width: 150px
+            overflow: hidden
+            object-fit: cover
+            object-position: center
+            background: #444
+            border-radius: 8px
+        > div
+            margin: 8px
+            max-lines: 2
+            text-overflow: ellipsis
+            overflow: hidden

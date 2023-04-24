@@ -19,14 +19,24 @@ const cache = new CellMeasurerCache({
 	fixedWidth: true,
 });
 
-// get formated duration string from milliseconds number
-// and hide hour if less than 1 hour
-const formatDuration = (duration: number) => {
+const formatDurationCN = (duration: number) => {
 	const d = Math.floor(duration / 1000);
 	const h = Math.floor(d / 3600);
 	const m = Math.floor((d % 3600) / 60);
 	const s = Math.floor((d % 3600) % 60);
 	return h > 0 ? `${h} 时 ${m} 分 ${s} 秒` : `${m} 分 ${s} 秒`;
+};
+
+const formatDuration = (duration: number) => {
+	const d = Math.floor(duration / 1000);
+	const h = Math.floor(d / 3600);
+	const m = Math.floor((d % 3600) / 60);
+	const s = Math.floor((d % 3600) % 60);
+	return h > 0
+		? `${h}:${"0".repeat(2 - m.toString().length)}${m}:${"0".repeat(
+				2 - s.toString().length,
+		  )}${s}`
+		: `${m}:${"0".repeat(2 - s.toString().length)}${s}`;
 };
 
 export const PlaylistPage: React.FC = () => {
@@ -113,6 +123,8 @@ export const PlaylistPage: React.FC = () => {
 						}
 					/>
 					<div>{v.name}</div>
+					<div style={{ flex: "1" }} />
+					<div className="duration">{formatDuration(v.dt)}</div>
 				</div>
 			</CellMeasurer>
 		);
@@ -131,7 +143,7 @@ export const PlaylistPage: React.FC = () => {
 					{playlistSongs && (
 						<div className="playlist-stat">
 							{playlistSongs.length} 首歌曲 ·{" "}
-							{formatDuration(totalDuration || 0)}
+							{formatDurationCN(totalDuration || 0)}
 						</div>
 					)}
 					<div className="playlist-creator">

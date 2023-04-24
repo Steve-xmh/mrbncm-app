@@ -13,13 +13,14 @@ import outlineExpandMore from "@iconify/icons-ic/outline-expand-more";
 import outlineExpandLess from "@iconify/icons-ic/outline-expand-less";
 import { ErrorPage } from "./pages/Error";
 import { SettingsPage } from "./pages/Settings";
-import { Suspense, useState } from "react";
-import { useAtomValue } from "jotai";
+import { Suspense, useRef, useState } from "react";
+import { useAtom, useAtomValue } from "jotai";
 import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
 import { PlaylistPage } from "./pages/Playlist";
 import { BarLoader } from "react-spinners";
 import { BottomPlayControls } from "./components/BottomPlayControls";
 import { LazyImage } from "./components/LazyImage";
+import { atomWithStorage } from "jotai/utils";
 
 let navigate: NavigateFunction = (path) => {
 	location.hash = `#${path}`;
@@ -87,13 +88,31 @@ const UserPlaylists: React.FC = () => {
 	);
 };
 
+const sidebarWidthAtom = atomWithStorage("sidebar-width", 256);
+
 function App() {
 	const [playlistOpened, setPlaylistOpened] = useState(false);
+	const sidebarRef = useRef<HTMLDivElement>(null);
+	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom)
+	
+	const onSidebarDraggerMouseDown = () => {
+		const onMouseMove = (evt: MouseEvent) => {
+			setSidebarWidth(Math.max(192, Math.min(512, evt.clientX)))
+		}
+		const onMouseUp = () => {
+			window.removeEventListener("mousemove", onMouseMove)
+			window.removeEventListener("mouseup", onMouseUp)
+		}
+		window.addEventListener("mousemove", onMouseMove)
+		window.addEventListener("mouseup", onMouseUp)
+	}
 
 	return (
 		<div className="container">
 			<div className="upper-container">
-				<div className="sidebar">
+				<div className="sidebar" ref={sidebarRef} style={{
+					width:`${sidebarWidth}px`
+				}}>
 					<input className="search-input" placeholder="搜索……" />
 					<button
 						className="sidebar-btn"
@@ -146,7 +165,9 @@ function App() {
 						设置
 					</button>
 				</div>
-				<div className="dragger" />
+				<div className="dragger" style={{
+					cursor: sidebarWidth === 192 ? "e-resize" : sidebarWidth === 512 ? "w-resize" : "ew-resize",
+				}} onMouseDown={onSidebarDraggerMouseDown} />
 				<div className="main-page-router">
 					<Suspense fallback={<BarLoader />}>
 						<RouterProvider router={router} />

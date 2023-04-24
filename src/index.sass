@@ -13,6 +13,12 @@ $fonts: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     background: #111
     color: #FFF
 
+body
+    position: fixed
+    width: 100%
+    height: 100%
+    overflow: hidden
+    
 input
     background: transparent
     border: solid 2px #FFF2
@@ -75,9 +81,6 @@ input
 .upper-container
     display: flex
     .sidebar
-        // min-width: 256px
-        // max-width: 350px
-        max-width: 256px
         padding: 16px
         display: flex
         gap: 7px
@@ -86,7 +89,6 @@ input
     .dragger
         width: 2px
         background-color: #FFF3
-        cursor: e-resize
 
 .search-input
     margin-bottom: 16px
