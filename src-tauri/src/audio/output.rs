@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::AtomicBool};
+use std::sync::{atomic::AtomicBool, Arc};
 
 use super::resampler::Resampler;
 use cpal::{traits::*, *};
@@ -67,7 +67,7 @@ impl<T: AudioOutputSample> AudioOutput for AudioStreamPlayer<T> {
     fn stream_mut(&mut self) -> &mut Stream {
         &mut self.stream
     }
-    
+
     fn is_dead(&self) -> bool {
         self.is_dead.load(std::sync::atomic::Ordering::SeqCst)
     }
@@ -150,9 +150,7 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
 }
 
 pub fn init_audio_player() -> Box<dyn AudioOutput> {
-    let output = cpal::default_host()
-        .default_output_device()
-        .unwrap();
+    let output = cpal::default_host().default_output_device().unwrap();
     println!(
         "已初始化输出音频设备为 {}",
         output.name().unwrap_or_default()

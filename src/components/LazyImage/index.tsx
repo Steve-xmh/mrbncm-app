@@ -10,7 +10,7 @@ export const LazyImage: React.FC<
 	useLayoutEffect(() => {
 		const img = imgRef.current;
 		if (img) {
-			let canceled = false
+			let canceled = false;
 			img.style.opacity = "0";
 			const firstLoadTime = Date.now();
 			const onLoad = async () => {
@@ -40,25 +40,25 @@ export const LazyImage: React.FC<
 	useEffect(() => {
 		const img = imgRef.current;
 		if (img && src !== undefined) {
-            let canceled = false;
-            (async () => {
-                await img.animate(
-                    [
-                        {
-                            opacity: "0",
-                        },
-                    ],
-                    {
-                        duration: 200,
-                    },
-                ).finished;
+			let canceled = false;
+			(async () => {
+				await img.animate(
+					[
+						{
+							opacity: "0",
+						},
+					],
+					{
+						duration: 200,
+					},
+				).finished;
 				if (canceled) return;
-                img.style.opacity = "0";
-                img.src = src;
-            })();
-            return () => {
-                canceled = true;
-            }
+				img.style.opacity = "0";
+				img.src = src;
+			})();
+			return () => {
+				canceled = true;
+			};
 		}
 	}, [src]);
 
