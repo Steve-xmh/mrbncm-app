@@ -135,7 +135,9 @@ impl AudioPlayer {
             AudioThreadMessage::ResumeAudio { .. } => {
                 self.is_playing = true;
                 println!("开始继续播放歌曲！");
-                self.player.stream().play().unwrap();
+                if self.player.stream().play().is_err() {
+                    self.player = super::output::init_audio_player();
+                }
                 let _ = self.app.emit_all(
                     "on-audio-thread-event",
                     AudioThreadEvent::PlayStatus {
@@ -146,7 +148,9 @@ impl AudioPlayer {
             }
             AudioThreadMessage::PauseAudio { .. } => {
                 self.is_playing = false;
-                self.player.stream().pause().unwrap();
+                if self.player.stream().pause().is_err() {
+                    self.player = super::output::init_audio_player();
+                }
                 println!("播放已暂停！");
                 let _ = self.app.emit_all(
                     "on-audio-thread-event",
@@ -171,7 +175,9 @@ impl AudioPlayer {
                 }
 
                 self.is_playing = true;
-                self.player.stream().play().unwrap();
+                if self.player.stream().play().is_err() {
+                    self.player = super::output::init_audio_player();
+                }
                 println!("播放上一首歌曲！");
                 self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
@@ -180,7 +186,9 @@ impl AudioPlayer {
                 self.format_result = None;
                 self.decoder = None;
                 self.is_playing = true;
-                self.player.stream().play().unwrap();
+                if self.player.stream().play().is_err() {
+                    self.player = super::output::init_audio_player();
+                }
                 println!("播放下一首歌曲！");
                 self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
@@ -194,7 +202,9 @@ impl AudioPlayer {
                 } else {
                     self.current_play_index = *song_index - 1;
                 }
-                self.player.stream().play().unwrap();
+                if self.player.stream().play().is_err() {
+                    self.player = super::output::init_audio_player();
+                }
                 println!("播放第 {} 首歌曲！", *song_index + 1);
                 self.set_download_state(DownloadStatus::Idle);
                 msg.ret(&self.app, None::<()>).unwrap();
