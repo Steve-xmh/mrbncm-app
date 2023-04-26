@@ -42,7 +42,7 @@ fn recreate_window(app: &AppHandle) {
     .inner_size(800., 600.)
     .min_inner_size(800., 600.)
     .title("MRBNCM App")
-    .visible(false)
+    .visible(true)
     .theme(Some(Theme::Dark))
     .build()
     .expect("can't show original window");
@@ -100,6 +100,10 @@ fn main() {
                 _ => {}
             },
             _ => {}
+        })
+        .setup(|app| {
+            recreate_window(&app.handle());
+            Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

@@ -16,6 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src"],
+  "include": ["src", "libs/applemusic-like-lyrics/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,51 +1,20 @@
-import {
-	createHashRouter,
-	RouterProvider,
-	NavigateFunction,
-} from "react-router-dom";
-import { LoginPage } from "./pages/Login";
-import { MainPage } from "./pages/Main";
+import { Outlet, useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import settingIcon from "@iconify/icons-uil/setting";
 import playlistIcon from "@iconify/icons-mdi/playlist-music";
 import baselineHome from "@iconify/icons-ic/baseline-home";
 import outlineExpandMore from "@iconify/icons-ic/outline-expand-more";
 import outlineExpandLess from "@iconify/icons-ic/outline-expand-less";
-import { ErrorPage } from "./pages/Error";
-import { SettingsPage } from "./pages/Settings";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { userInfoAtom, userPlaylistAtom } from "./ncm-api";
-import { PlaylistPage } from "./pages/Playlist";
-import { BarLoader } from "react-spinners";
+import { SwitchTransition, CSSTransition } from "react-transition-group";
 import { BottomPlayControls } from "./components/BottomPlayControls";
 import { LazyImage } from "./components/LazyImage";
 import { atomWithStorage } from "jotai/utils";
 import { getCurrent } from "@tauri-apps/api/window";
-
-let navigate: NavigateFunction = (path) => {
-	location.hash = `#${path}`;
-};
-
-const router = createHashRouter([
-	{
-		path: "/login",
-		element: <LoginPage />,
-	},
-	{
-		path: "/settings",
-		element: <SettingsPage />,
-	},
-	{
-		path: "/",
-		element: <MainPage />,
-		errorElement: <ErrorPage />,
-	},
-	{
-		path: "/playlist/:id",
-		element: <PlaylistPage />,
-	},
-]);
+import { routes } from "./pages";
+import { AMLLWrapper } from "./components/AMLLWrapper";
 
 const UserInfoButton: React.FC = () => {
 	const userInfo = useAtomValue(userInfoAtom);
@@ -70,6 +39,7 @@ const UserInfoButton: React.FC = () => {
 
 const UserPlaylists: React.FC = () => {
 	const playlists = useAtomValue(userPlaylistAtom)?.playlist ?? [];
+	const navigate = useNavigate();
 
 	return (
 		<>
@@ -95,6 +65,14 @@ function App() {
 	const [playlistOpened, setPlaylistOpened] = useState(false);
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom);
+	const navigate = useNavigate();
+	const location = useLocation();
+	const currentOutlet = useOutlet();
+	const [lyricPageOpened, setLyricPageOpened] = useState(false);
+	const { nodeRef } =
+		routes[0].children?.find(
+			(route) => `/${route.path}` === location.pathname,
+		) ?? {};
 
 	const onSidebarDraggerMouseDown = () => {
 		const onMouseMove = (evt: MouseEvent) => {
@@ -115,87 +93,114 @@ function App() {
 	}, []);
 
 	return (
-		<div className="container">
-			<div className="upper-container">
-				<div
-					className="sidebar"
-					ref={sidebarRef}
-					style={{
-						width: `${sidebarWidth}px`,
-					}}
-				>
-					<input className="search-input" placeholder="搜索……" />
-					<button
-						className="sidebar-btn"
-						onClick={() => {
-							navigate("/");
+		<>
+			<div className="container">
+				<div className="upper-container">
+					<div
+						className="sidebar"
+						ref={sidebarRef}
+						style={{
+							width: `${sidebarWidth}px`,
 						}}
 					>
-						<Icon width={20} icon={baselineHome} inline className="icon" />
-						主页
-					</button>
-					<button
-						className="sidebar-btn"
-						onClick={() => setPlaylistOpened((v) => !v)}
-					>
-						<Icon
-							width={20}
-							icon={playlistOpened ? outlineExpandLess : outlineExpandMore}
-							inline
-							className="icon"
+						<input
+							className="search-input"
+							placeholder="搜索……"
+							onKeyDown={(evt) => {
+								if (evt.key === "Enter") {
+									navigate(
+										`/search?keyword=${(evt.target as HTMLInputElement).value}`,
+									);
+									(evt.target as HTMLInputElement).blur();
+								}
+							}}
 						/>
-						{playlistOpened ? "收起歌单列表" : "展开歌单列表"}
-					</button>
-					{playlistOpened && (
+						<button
+							className="sidebar-btn"
+							onClick={() => {
+								navigate("/main");
+							}}
+						>
+							<Icon width={20} icon={baselineHome} inline className="icon" />
+							主页
+						</button>
+						<button
+							className="sidebar-btn"
+							onClick={() => setPlaylistOpened((v) => !v)}
+						>
+							<Icon
+								width={20}
+								icon={playlistOpened ? outlineExpandLess : outlineExpandMore}
+								inline
+								className="icon"
+							/>
+							{playlistOpened ? "收起歌单列表" : "展开歌单列表"}
+						</button>
+						{playlistOpened && (
+							<Suspense>
+								<div
+									style={{
+										minHeight: 0,
+										flex: 1,
+										overflowX: "hidden",
+										overflowY: "auto",
+										display: "flex",
+										flexDirection: "column",
+									}}
+								>
+									<UserPlaylists />
+								</div>
+							</Suspense>
+						)}
+						{/* <div className="spacer" /> */}
 						<Suspense>
-							<div
-								style={{
-									minHeight: 0,
-									flex: 1,
-									overflowX: "hidden",
-									overflowY: "auto",
-									display: "flex",
-									flexDirection: "column",
-								}}
-							>
-								<UserPlaylists />
-							</div>
+							<UserInfoButton />
 						</Suspense>
-					)}
-					{/* <div className="spacer" /> */}
-					<Suspense>
-						<UserInfoButton />
-					</Suspense>
-					<button
-						className="sidebar-btn"
-						onClick={() => {
-							navigate("/settings");
+						<button
+							className="sidebar-btn"
+							onClick={() => {
+								navigate("/settings");
+							}}
+						>
+							<Icon width={20} icon={settingIcon} inline className="icon" />
+							设置
+						</button>
+					</div>
+					<div
+						className="dragger"
+						style={{
+							cursor:
+								sidebarWidth === 192
+									? "e-resize"
+									: sidebarWidth === 512
+									? "w-resize"
+									: "ew-resize",
 						}}
-					>
-						<Icon width={20} icon={settingIcon} inline className="icon" />
-						设置
-					</button>
+						onMouseDown={onSidebarDraggerMouseDown}
+					/>
+					<div className="main-page-router">
+						<SwitchTransition>
+							<CSSTransition
+								key={location.key}
+								nodeRef={nodeRef}
+								timeout={200}
+								classNames="inner-page"
+							>
+								{() => (
+									<div ref={nodeRef}>
+										<Suspense>{currentOutlet}</Suspense>
+									</div>
+								)}
+							</CSSTransition>
+						</SwitchTransition>
+					</div>
 				</div>
-				<div
-					className="dragger"
-					style={{
-						cursor:
-							sidebarWidth === 192
-								? "e-resize"
-								: sidebarWidth === 512
-								? "w-resize"
-								: "ew-resize",
-					}}
-					onMouseDown={onSidebarDraggerMouseDown}
-				/>
-				<div className="main-page-router">
-					<Suspense fallback={<BarLoader />}>
-						<RouterProvider router={router} />
-					</Suspense>
-				</div>
+				<BottomPlayControls />
 			</div>
-			<BottomPlayControls />
-		</div>
+			<div>
+				<AMLLWrapper />
+			</div>
+		</>
 	);
 }
 

@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useParams } from "react-router-dom";
 import { NCMSongDetail, getSongDetailAtom, ncmAPIAtom } from "../../ncm-api";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./index.sass";
 import { BarLoader } from "react-spinners";
 import { sendMsgToAudioThread } from "../../tauri-api";

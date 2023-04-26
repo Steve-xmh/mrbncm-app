@@ -34,7 +34,26 @@ input
 .spacer
     flex: 1
 
+.inner-page-enter
+  opacity: 0
+  transform: scale(1.1)
+
+.inner-page-enter-active
+  opacity: 1
+  transform: scale(1)
+  transition: opacity 200ms, transform 200ms
+
+.inner-page-exit
+  opacity: 1
+  transform: scale(1)
+
+.inner-page-exit-active
+  opacity: 0
+  transform: scale(0.9)
+  transition: opacity 200ms, transform 200ms
+
 .container
+    position: absolute
     display: flex
     width: 100vw
     height: 100vh
@@ -50,7 +69,10 @@ input
 .main-page-router
     flex: 1
     min-height: 0
-    overflow-y: auto
+    contain: paint
+    > *
+        overflow-y: auto
+        height: 100%
 
 .sidebar-btn
     color: white

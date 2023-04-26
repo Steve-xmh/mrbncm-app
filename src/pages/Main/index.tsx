@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./index.sass";
 import { ncmAPIAtom } from "../../ncm-api";
 import { LazyImage } from "../../components/LazyImage";
+import { useNavigate } from "react-router-dom";
 
 const recommendResourceAtom = atom(async (get) => {
 	const api = await get(ncmAPIAtom);
@@ -29,6 +30,7 @@ export const HeadCard: React.FC<
 
 export const MainPage: React.FC = () => {
 	const recommendResource = useAtomValue(recommendResourceAtom);
+	const navigate = useNavigate();
 	return (
 		<div className="main-page">
 			<h2>欢迎来到 MRBNCM App！</h2>
@@ -40,7 +42,11 @@ export const MainPage: React.FC = () => {
 				<Suspense>
 					{recommendResource?.recommend?.map((v, i) => (
 						<div key={`rcmd-card-${i}`}>
-							<HeadCard src={v.picUrl} label={v.name} />
+							<HeadCard
+								onClick={() => navigate(`/playlist/${v.id}`)}
+								src={v.picUrl}
+								label={v.name}
+							/>
 						</div>
 					))}
 				</Suspense>

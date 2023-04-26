@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import stringPlugin from "vite-plugin-string";
 import svgLoader from "vite-svg-loader";
 import react from "@vitejs/plugin-react";
 import jotaiDebugLabel from "jotai/babel/plugin-debug-label";
@@ -33,8 +34,11 @@ export default defineConfig({
 				plugins: [jotaiDebugLabel, jotaiReactRefresh],
 			},
 		}),
-		svgLoader(),
+		svgLoader({
+			defaultImport: "url"
+		}),
 		reactVirtualized(),
+		stringPlugin(),
 	],
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -56,4 +60,7 @@ export default defineConfig({
 		// produce sourcemaps for debug builds
 		sourcemap: !!process.env.TAURI_DEBUG,
 	},
+	define: {
+		DEBUG: process.env.TAURI_DEBUG,
+	}
 });
