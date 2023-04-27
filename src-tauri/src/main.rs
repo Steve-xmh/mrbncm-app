@@ -72,6 +72,7 @@ fn main() {
     tauri::Builder::default()
         .system_tray(tray)
         .manage(AppState::default())
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             eapi::tauri_eapi_encrypt,
             eapi::tauri_eapi_decrypt,

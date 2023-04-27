@@ -1,4 +1,7 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU8},
+    Arc,
+};
 
 use super::resampler::Resampler;
 use cpal::{traits::*, *};
@@ -14,6 +17,8 @@ pub trait AudioOutput {
     fn stream(&self) -> &Stream;
     fn is_dead(&self) -> bool;
     fn stream_mut(&mut self) -> &mut Stream;
+    fn set_volume(&mut self, volume: f64);
+    fn volume(&self) -> f64;
     fn write(&mut self, decoded: symphonia::core::audio::AudioBufferRef<'_>);
     fn flush(&mut self);
 }
@@ -24,6 +29,7 @@ pub struct AudioStreamPlayer<T: AudioOutputSample> {
     stream: Stream,
     is_dead: Arc<AtomicBool>,
     prod: rb::Producer<T>,
+    volume: Arc<AtomicU8>,
     resampler: Option<Resampler<T>>,
     resampler_duration: usize,
     resampler_spec: SignalSpec,
@@ -72,6 +78,16 @@ impl<T: AudioOutputSample> AudioOutput for AudioStreamPlayer<T> {
         self.is_dead.load(std::sync::atomic::Ordering::SeqCst)
     }
 
+    fn set_volume(&mut self, volume: f64) {
+        let volume = (volume * 255.).clamp(0., 255.) as u8;
+        self.volume
+            .store(volume, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn volume(&self) -> f64 {
+        self.volume.load(std::sync::atomic::Ordering::SeqCst) as f64 / 255.
+    }
+
     fn write(&mut self, decoded: symphonia::core::audio::AudioBufferRef<'_>) {
         if decoded.frames() == 0 {
             return;
@@ -108,7 +124,7 @@ impl<T: AudioOutputSample> AudioOutput for AudioStreamPlayer<T> {
     fn flush(&mut self) {}
 }
 
-fn init_audio_stream_inner<T: AudioOutputSample>(
+fn init_audio_stream_inner<T: AudioOutputSample + Into<f64>>(
     output: Device,
     selected_config: StreamConfig,
 ) -> Box<dyn AudioOutput> {
@@ -119,12 +135,19 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
     let cons = ring.consumer();
     let is_dead = Arc::new(AtomicBool::new(false));
     let is_dead_c = is_dead.clone();
+    let volume: Arc<_> = Arc::new(AtomicU8::new(u8::MAX >> 1));
+    let volume_c = volume.clone();
     let stream = output
         .build_output_stream::<T, _, _>(
             &selected_config,
             move |data, _info| {
                 let written = cons.read(data).unwrap_or(0);
                 data[written..].fill(T::MID);
+                let volume = volume_c.load(std::sync::atomic::Ordering::SeqCst) as f32 / 255.;
+                data.iter_mut().for_each(|x| {
+                    let s: f32 = (*x).into_sample();
+                    *x = (s * volume).into_sample();
+                });
             },
             move |err| {
                 println!("[WARN][AT] {err}");
@@ -140,6 +163,7 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
         stream,
         prod,
         is_dead,
+        volume,
         resampler: None,
         resampler_duration: 0,
         resampler_spec: SignalSpec {
@@ -149,8 +173,16 @@ fn init_audio_stream_inner<T: AudioOutputSample>(
     })
 }
 
-pub fn init_audio_player() -> Box<dyn AudioOutput> {
-    let output = cpal::default_host().default_output_device().unwrap();
+pub fn init_audio_player(output_device_name: &str) -> Box<dyn AudioOutput> {
+    let host = cpal::default_host();
+    let output = if output_device_name.is_empty() {
+        host.default_output_device().unwrap()
+    } else {
+        host.output_devices()
+            .unwrap()
+            .find(|d| d.name().unwrap_or_default() == output_device_name)
+            .unwrap_or_else(|| host.default_output_device().unwrap())
+    };
     println!(
         "已初始化输出音频设备为 {}",
         output.name().unwrap_or_default()

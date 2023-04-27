@@ -71,6 +71,10 @@ pub enum AudioThreadMessage {
     #[serde(rename_all = "camelCase")]
     SetCookie { callback_id: String, cookie: String },
     #[serde(rename_all = "camelCase")]
+    SetVolume { callback_id: String, volume: f64 },
+    #[serde(rename_all = "camelCase")]
+    SetAudioOutput { callback_id: String, name: String },
+    #[serde(rename_all = "camelCase")]
     SyncStatus,
 }
 
@@ -92,6 +96,7 @@ pub enum AudioThreadEvent {
         is_playing: bool,
         duration: f64,
         position: f64,
+        volume: f64,
         load_position: f64,
         playlist: Vec<SongData>,
     },
@@ -133,6 +138,8 @@ impl AudioThreadMessage {
             AudioThreadMessage::NextSong { callback_id } => callback_id.as_str(),
             AudioThreadMessage::SetPlaylist { callback_id, .. } => callback_id.as_str(),
             AudioThreadMessage::SetCookie { callback_id, .. } => callback_id.as_str(),
+            AudioThreadMessage::SetVolume { callback_id, .. } => callback_id.as_str(),
+            AudioThreadMessage::SetAudioOutput { callback_id, .. } => callback_id.as_str(),
             AudioThreadMessage::SyncStatus { .. } => "",
         }
     }

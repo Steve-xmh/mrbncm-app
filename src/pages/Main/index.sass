@@ -35,7 +35,29 @@
             object-position: center
             background: #444
             border-radius: 8px
-        > div
+        > .daily-text
+            position: absolute
+            width: 80px
+            text-align: center
+            margin: 60px calc((150px - 80px) / 2)
+            font-size: 40px
+            font-weight: bold
+        > .daily-icon
+            aspect-ratio: 1 / 1
+            width: 150px
+            max-width: 150px
+            overflow: hidden
+            object-fit: none
+            object-position: center
+            background: #26A
+            border-radius: 8px
+            display: flex
+            justify-content: center
+            align-items: center
+            > *
+                width: 120px
+                height: 120px
+        > div:last-child
             margin: 8px
             max-lines: 2
             text-overflow: ellipsis

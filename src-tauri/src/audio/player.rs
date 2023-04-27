@@ -77,7 +77,7 @@ impl AudioPlayer {
     pub fn new(app: tauri::AppHandle) -> Self {
         let codecs = symphonia::default::get_codecs();
         let probe = symphonia::default::get_probe();
-        let player = super::output::init_audio_player();
+        let player = super::output::init_audio_player("");
         let audio_cache_dir = app
             .path_resolver()
             .app_cache_dir()
@@ -103,7 +103,7 @@ impl AudioPlayer {
             codecs,
             probe,
             player,
-            volume: 1.,
+            volume: 0.5,
             session,
             audio_current_tmp_file,
             playlist,
@@ -136,7 +136,7 @@ impl AudioPlayer {
                 self.is_playing = true;
                 println!("开始继续播放歌曲！");
                 if self.player.stream().play().is_err() {
-                    self.player = super::output::init_audio_player();
+                    self.player = super::output::init_audio_player("");
                 }
                 let _ = self.app.emit_all(
                     "on-audio-thread-event",
@@ -149,7 +149,7 @@ impl AudioPlayer {
             AudioThreadMessage::PauseAudio { .. } => {
                 self.is_playing = false;
                 if self.player.stream().pause().is_err() {
-                    self.player = super::output::init_audio_player();
+                    self.player = super::output::init_audio_player("");
                 }
                 println!("播放已暂停！");
                 let _ = self.app.emit_all(
@@ -176,7 +176,7 @@ impl AudioPlayer {
 
                 self.is_playing = true;
                 if self.player.stream().play().is_err() {
-                    self.player = super::output::init_audio_player();
+                    self.player = super::output::init_audio_player("");
                 }
                 println!("播放上一首歌曲！");
                 self.set_download_state(DownloadStatus::Idle);
@@ -187,7 +187,7 @@ impl AudioPlayer {
                 self.decoder = None;
                 self.is_playing = true;
                 if self.player.stream().play().is_err() {
-                    self.player = super::output::init_audio_player();
+                    self.player = super::output::init_audio_player("");
                 }
                 println!("播放下一首歌曲！");
                 self.set_download_state(DownloadStatus::Idle);
@@ -203,7 +203,7 @@ impl AudioPlayer {
                     self.current_play_index = *song_index - 1;
                 }
                 if self.player.stream().play().is_err() {
-                    self.player = super::output::init_audio_player();
+                    self.player = super::output::init_audio_player("");
                 }
                 println!("播放第 {} 首歌曲！", *song_index + 1);
                 self.set_download_state(DownloadStatus::Idle);
@@ -212,24 +212,43 @@ impl AudioPlayer {
             AudioThreadMessage::SetPlaylist { songs, .. } => {
                 self.playlist = songs.to_owned();
                 println!("已设置播放列表，歌曲数量为 {}", songs.len());
-                self.current_play_index = self.playlist.len();
+                if let Some(song) = self
+                    .playlist
+                    .iter()
+                    .enumerate()
+                    .find(|x| x.1.ncm_id == self.current_song.ncm_id)
+                {
+                    self.current_play_index = song.0;
+                } else {
+                    self.current_play_index = self.playlist.len();
+                }
                 msg.ret(&self.app, None::<()>).unwrap();
             }
             AudioThreadMessage::SyncStatus => {
-                let _ = self.app.emit_all(
-                    "on-audio-thread-event",
-                    AudioThreadEvent::SyncStatus {
-                        ncm_id: self.current_song.ncm_id.to_owned(),
-                        is_playing: self.is_playing,
-                        duration: self.play_duration,
-                        position: self.play_position,
-                        load_position: self.download_state.lock().unwrap().get_download_progress(),
-                        playlist: self.playlist.to_owned(),
-                    },
-                );
+                self.send_sync_status();
+            }
+            AudioThreadMessage::SetVolume { volume, .. } => {
+                self.volume = volume.clamp(0., 1.);
+                self.player.set_volume(self.volume);
+                msg.ret(&self.app, None::<()>).unwrap();
             }
             other => dbg!(other).ret(&self.app, None::<()>).unwrap(),
         }
+    }
+
+    fn send_sync_status(&self) {
+        let _ = self.app.emit_all(
+            "on-audio-thread-event",
+            AudioThreadEvent::SyncStatus {
+                ncm_id: self.current_song.ncm_id.to_owned(),
+                is_playing: self.is_playing,
+                duration: self.play_duration,
+                position: self.play_position,
+                volume: self.volume,
+                load_position: self.download_state.lock().unwrap().get_download_progress(),
+                playlist: self.playlist.to_owned(),
+            },
+        );
     }
 
     fn get_download_state(&self) -> MutexGuard<'_, DownloadStatus> {
@@ -260,7 +279,7 @@ impl AudioPlayer {
                             );
                             if self.player.is_dead() {
                                 println!("[WARN][AT] 现有输出设备已断开，正在重新初始化播放器");
-                                self.player = super::output::init_audio_player();
+                                self.player = super::output::init_audio_player("");
                                 self.player.stream().play().unwrap();
                             }
                             self.player.write(buf);

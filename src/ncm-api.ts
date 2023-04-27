@@ -7,6 +7,9 @@ import {
 } from "./tauri-api";
 import { atom } from "jotai";
 import { invoke } from "@tauri-apps/api/tauri";
+import { appWindow } from "@tauri-apps/api/window";
+import { appDataDir, appCacheDir } from "@tauri-apps/api/path";
+import Database from "tauri-plugin-sql-api";
 
 let client: Client;
 
@@ -100,20 +103,76 @@ export interface NCMSongDetail {
 	tns: string[];
 }
 
-const songsCache = new Map<number, NCMSongDetail>();
+let database: Database;
+
+async function initSongsCache() {
+	const songsCacheDBPath = `sqlite:${await appCacheDir()}songs-cache.db`;
+	database = await Database.load(songsCacheDBPath);
+	console.log("已初始化歌曲数据库", database.path);
+	console.log(
+		await database.execute(
+			"CREATE TABLE IF NOT EXISTS SONGS_CACHE" +
+				"(NCMID UNSIGNED BIT INT PRIMARY KEY NOT NULL UNIQUE," +
+				"SONG_DATA TEXT NOT NULL," +
+				"EXPIRE_TIME INT NOT NULL)",
+		),
+	);
+	const curDate = Date.now();
+	console.log(
+		await database.execute("DELETE FROM SONGS_CACHE WHERE EXPIRE_TIME < ?", [
+			curDate,
+		]),
+	);
+	appWindow.onCloseRequested(async () => {
+		await database.close();
+	});
+}
+initSongsCache();
+
+async function saveSongsCache(songs: NCMSongDetail[]) {
+	const expireDate = Date.now() + 30 * 24 * 60 * 60 * 1000;
+	await Promise.all(
+		songs.map(async (v) => {
+			const data = JSON.stringify(v);
+			if (!v.id) return;
+			await database.execute(
+				"REPLACE INTO SONGS_CACHE" +
+					"(NCMID, SONG_DATA, EXPIRE_TIME) VALUES " +
+					"($1, $2, $3) ",
+				[v.id, data, expireDate],
+			);
+		}),
+	);
+}
+
+async function searchForSongsCache(
+	songIds: number[],
+): Promise<NCMSongDetail[]> {
+	const curTime = Date.now();
+	return (
+		await Promise.all(
+			songIds.map(async (id) => {
+				const c: NCMSongDetail[] = await database.select(
+					"SELECT * FROM SONGS_CACHE WHERE NCMID = $1 AND EXPIRE_TIME >= $2 LIMIT 1",
+					[id, curTime],
+				);
+				if (c.length > 0) {
+					return c[0];
+				}
+				return undefined;
+			}),
+		)
+	).filter((v) => v) as NCMSongDetail[];
+}
 
 export const getSongDetailAtom = atom(async (get) => {
 	const ncm = await get(ncmAPIAtom);
 	return async (ids: number[]) => {
-		const results = new Map<number, NCMSongDetail>();
+		const results = new Map<number, NCMSongDetail>(
+			(await searchForSongsCache(ids)).map((v) => [v.id, v]),
+		);
 		const uncachedIds = ids.filter((id) => {
-			const c = songsCache.get(id);
-			if (c) {
-				results.set(id, c);
-				return false;
-			} else {
-				return true;
-			}
+			return !results.has(id);
 		});
 		const songsThreads = [];
 		for (let i = 0; i < uncachedIds.length; i += 1000) {
@@ -133,12 +192,14 @@ export const getSongDetailAtom = atom(async (get) => {
 					.then((v) => {
 						for (const song of v.songs) {
 							results.set(song.id, song);
-							songsCache.set(song.id, song);
 						}
 					}),
 			);
 		}
 		await Promise.all(songsThreads);
+		saveSongsCache([...results.values()]).catch((err) => {
+			console.warn("缓存歌曲信息出错", err);
+		});
 		return ids.map((v) => results.get(v)!!);
 	};
 });

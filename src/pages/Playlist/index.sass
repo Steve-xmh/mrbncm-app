@@ -18,12 +18,25 @@
     display: flex
     align-items: center
     gap: 32px
+    max-height: 50%
+    flex-wrap: nowrap
+    overflow: hidden
 .playlist-info
     gap: min(2vh, 16px)
     display: flex
     flex-direction: column
+    flex-wrap: nowrap
+    max-lines: 2
+    min-height: 0
+    max-height: 100%
+    overflow: hidden
 .playlist-name
     font-size: min(3vw, 200%)
+    text-overflow: ellipsis
+    word-wrap: break-word
+    overflow: hidden
+    min-width: 0
+    min-height: 0
 .playlist-creator
     display: flex
     align-items: center
@@ -56,22 +69,3 @@
         background-color: #FFF1
     &:active
         background-color: #0001
-.song-btn
-    display: flex
-    align-items: center
-    padding: 16px
-    gap: 16px
-    height: 64px
-    border-radius: 8px
-    cursor: default
-    &.even
-        background-color: #FFF1
-        &:active
-            background-color: #0001
-    &:hover
-        background-color: #FFF2
-    &:active
-        background-color: #0001
-.song-album-img
-    border-radius: 4px
-    
